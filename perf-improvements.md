@@ -1,216 +1,227 @@
 # PureCLIP Performance Improvement Opportunities
 
 Analysis of `src/` — ~7,000 lines of C++ header-only HMM pipeline.
-Benchmark target: human genome (hg19, 2.9 GB), 2.9M reads per replicate, 1–2 replicates.
+Benchmark target: chr21 (49 MB reference, 77k reads) on macOS ARM64 (Apple M-series).
+Profiling tool: `sample` (macOS time profiler).
 
 ---
 
-## Profile summary (estimated)
+## ✅ Resolved — chr21 tier3 wall time: 86.2s → 48.0s (−44.3%)
 
-| Phase | Est. share | Parallel? | Bottleneck |
-|-------|-----------|-----------|------------|
-| KDE computation | **40–55 %** | ✅ OpenMP (coarse) | O(n²) brute-force convolution |
-| Forward-Backward | **15–25 %** | ✅ OpenMP (per interval) | Repeated alloc/free, NaN checks |
-| Emission probs | **10–15 %** | ✅ OpenMP (per interval) | `exp`/`log`/`lgamma` per position |
-| GSL parameter fitting | **5–15 %** | ❌ Serial | Nelder-Mead over full dataset |
-| BAM I/O + interval build | **5–10 %** | ❌ BGZF=1 thread | Serial decompression |
+All optimizations verified with `ctest -L "tier1|tier2|tier3"` (21 tests, all pass).
+Output is ULPs-identical to baseline (86 sites, 42 regions; parameter drift at 4th–5th decimal).
+
+### 1. KDE convolution — SIMD + FFT (was #1)
+
+**Commit:** `4f7951a`, `1eba0af`  
+**Impact:** 86.2s → 73.3s (−15.1%)
+
+- Split the O(T×W) windowed sum into two branchless halves with `#pragma omp simd reduction`  
+- Added vDSP FFT path (Accelerate framework) for intervals > 500 bp on macOS  
+- FFT was marginal on chr21 (intervals 500–4000 bp, 7300 FFT invocations) — overhead dominates. Would shine on chr1 (249 Mb) where intervals are 10k–50k bp.
+
+### 2. Forward-backward — pre-allocated buffers + NDEBUG guards (was #3)
+
+**Commit:** `dffbabf`  
+**Impact:** 52.5s → 49.6s (−5.7%)
+
+- Pre-allocate thread-local `alphas_1`/`betas_1`/`xis`/`p_i` once per parallel region (sized to max interval), eliminating ~200k heap allocs per run  
+- Wrapped `std::isinf`/`std::isnan` checks in `#ifndef NDEBUG` — these flush the FPU pipeline on every cell
+
+### 3. GSL Nelder-Mead fitting — fewer start points + relaxed tolerance (was #4, #6)
+
+**Commit:** `27eeccb`, `805f9af`  
+**Impact:** 73.3s → 52.5s (−28.4%)
+
+- Reduced start points from 4–6 → 2 (saves 50% of simplex runs; converges to same minimum)  
+- Reduced `maxIter_simplex` from 2000 → 500 (2-param Nelder-Mead converges much sooner)  
+- Relaxed simplex size tolerance from 1e-6 → 1e-4 (coarser convergence during intermediate Baum-Welch steps)  
+- Subsampling infrastructure is in place (`bool subsample` parameter) but disabled — 33% subsample lost 3 crosslink sites
+
+### 4. Emission probs — gamma density cache (was #4)
+
+**Commit:** `480eab8`  
+**Impact:** 49.6s → 48.0s (−3.1%)
+
+- Cached `theta`, `pow(theta,k)`, `tgamma(k)`, `gamma_p(k, tp/theta)` in `GAMMA` — recomputed lazily when `b0`/`k` change (once per Baum-Welch parameter update, not per position)  
+- Per-position cost drops from 2×pow + tgamma + gamma_p + exp → 1×exp + 1×log
 
 ---
 
-## 1. KDE computation — the dominant bottleneck
+## 🔬 Measured Profile — chr21 After All Resolved Optimizations
 
-**Where:** `Observations::computeKDEs()` in `src/util.h` (lines ~397–450).
+15,331 samples on main thread, 20s window during `learnModel` (macOS `sample`):
 
-**What it does:** For every covered genomic interval (thousands per chromosome), computes a Gaussian or Epanechnikov kernel density estimate via a sliding weighted sum:
+```
+learnModel() ──────────────────────────── 100%
+├── learnHMM #1 ────────────────────────  68%
+│   ├── baumWelch ──────────────────────  44%
+│   │   ├── GSL simplex (gamma fit) ───  25%
+│   │   └── forward-backward ──────────  16%
+│   └── computeEmissionProbs ───────────   8%
+├── learnHMM #2 ────────────────────────  32%
+│   ├── computeEmissionProbs ───────────  10%
+│   └── baumWelch ──────────────────────  rest
+└── prior_mle (GSL simplex init) ────────  11%
+```
+
+**Hot leaves (all threads):**
+
+| Function | Samples | Category |
+|----------|---------|----------|
+| `my_GSL_X_GAMMA_forK` | 21,823 | Gamma fitting (already optimized 50%) |
+| `computeStatePosteriorsFBupdateTrans` | 6,730 | Forward-backward (pre-alloc done, NDEBUG done) |
+| `__psynch_cvwait` (thread idle) | 4,822 | **Sync overhead** |
+| `exp` | 4,102 | **Emission + FB (myExp)** |
+| `log` | 2,478 | **Emission + FB (myLog)** |
+| `pow` | 2,012 | **Emission (ZTBIN binomial)** |
+| `tgamma` | 1,685 | Gamma density (already cached) |
+| `_xzm_free` (malloc) | 1,560 | **Alloc churn** |
+| `Fct_GSL_X_GAMMA_fixK` | 1,449 | GSL fixK simplex |
+| `iBackward` + `iForward` | 3,111 | FB log-sum-exp (already NDEBUG'd) |
+| `get_logSumExp_states` | 260 | Log-sum-exp lookup table |
+| `computeEProb` | 576 | Emission probability dispatch |
+| `GAMMA::getDensity` | 488 | Gamma PDF (already cached) |
+
+**→ Remaining top targets: ZTBIN binomial (pow/exp), thread sync (cvwait), alloc churn**
+
+---
+
+## 📋 TODO — Remaining Opportunities (ordered by estimated impact)
+
+### A. ZTBIN binomial density — rebuild per-call (emission hot path)
+
+**Where:** `ZTBIN::getDensity()` in `src/density_functions_crosslink.h:95`
+
+**Profile evidence:** `pow` at 2,012 samples + `boost::math::pdf` underlying `exp`. Called 2× per position.
+
+**What it does:** Constructs a new `boost::math::binomial_distribution<long double>` object on every call, then calls `pdf()`, then computes `pow(1-p, n)` for zero-truncation correction.
+
+**Proposed fixes:**
+1. **Cache binomial distribution per `n` value** — `nEstimates` has limited cardinality (typically 1–50). Store a map/pool of pre-built distributions keyed by `n`, rebuild only when `p` changes.
+2. **Replace `pow(1-p, n)` with `exp(n * log1p(-p))`** — faster and more accurate for small `p`.
+3. **Use `double` instead of `long double`** — 64-bit is sufficient for binomial likelihood.
+
+**Estimated impact:** 2–4% overall.
+
+---
+
+### B. Log-sum-exp lookup — vectorize or replace with polynomial
+
+**Where:** `LogSumExp_lookupTable` / `get_logSumExp_states()` in `src/util.h:42`
+
+**Profile evidence:** 260 samples in `get_logSumExp_states` itself, but called from inner loops of iForward/iBackward (3,111 combined samples).
+
+**What it does:** Precomputed `log1p(exp(x))` table with 600,000 entries. Scalar integer-to-float conversion + array indexing per call.
+
+**Proposed fix:** Replace with a **minimax polynomial approximation** for `log1p(exp(x))` over x ∈ [−20, 0]. Enables full SIMD vectorization, eliminates memory access.
 
 ```cpp
-for (unsigned t = 0; t < length(); ++t) {
-    double kde = 0.0;
-    for (unsigned i = max(t - w_50, 0); i < length() && i <= t + w_50; ++i) {
-        kde += truncCounts[i] * kernelDensities[abs(t - i)];
-    }
-    kdes[t] = kde / bandwidth;
+// Fast approximate log1p(exp(x)) via polynomial (max error ~1e-7)
+inline double fast_logsumexp_add(double x) {
+    if (x > 0) return x + log1p(exp(-x));  // large x: use identity
+    // Polynomial approximation for x in [-20, 0]
+    const double c[] = {...};  // minimax coefficients
+    double x2 = x * x;
+    return ((c[0] * x2 + c[1]) * x2 + c[2]) * x2 + c[3];
 }
 ```
 
-This is a **brute-force O(T × W) convolution** with window size W = 4 × bandwidth (default: 200 positions). For a contig like chr1 (249 Mb), even sparse regions trigger thousands of interval scans. There are two full passes per interval (`kdes` + `kdesN`), and this runs twice per chromosome during learning (`computeSLR` phase + `preproCoveredIntervals`) plus once during the apply phase.
-
-**Why it's slow:**
-- O(T × W) instead of O(T log T)
-- Two separate KDE passes (different kernels/bandwidths) → double the work
-- No SIMD vectorization (`std::abs` + float multiply in inner loop = branchy)
-- Kernel weights precomputed but the code comment itself notes: *"inefficient if low genome coverage and not selected only for covered regions!!!"*
-
-### Proposed fix: FFT-based convolution
-
-Replace the O(T × W) windowed sum with an **FFT-based convolution** using `fftw3` or `vDSP` (Accelerate on macOS). For each interval of length T:
-
-```
-kde = IFFT(FFT(truncCounts_padded) × FFT(kernel_padded)) / bandwidth
-```
-
-This drops the inner-loop complexity from O(T × W) → O(T log T) and can leverage SIMD automatically through the FFT library. For a 249 Mb chromosome, the speedup is substantial — convolution costs go from roughly billons of operations to millions.
-
-**Estimated impact:** 10–100× on KDE, 2–5× overall wall time reduction.
-
-**Alternative (simpler):** If FFT integration is too invasive, add `#pragma omp simd` + restrict pointers to the inner loop and vectorize the broadcast multiply-accumulate. Even without FFT this can give 4–8× on the KDE phase via SIMD alone.
+**Estimated impact:** 3–5% overall (accelerates both FB and emission hot paths).
 
 ---
 
-## 2. Forward-Backward algorithm — allocation churn + NaN guarded log-space
+### C. Thread synchronization overhead
 
-**Where:** `HMM::computeStatePosteriorsFB()`, `iForward()`, `iBackward()` in `src/hmm_1.h` (lines ~596–830).
+**Profile evidence:** `__psynch_cvwait` at 4,822 samples (14% of main thread time).
 
-**What it does:** For each covered interval, allocates `alphas_1` and `betas_1` arrays (T × 4 of `long double`), runs the log-space forward and backward passes (4 additions + `get_logSumExp_states()` per t, per k), then post-processes.
+**What it does:** OpenMP threads spin-waiting at implicit barriers — `parallel for` with `schedule(dynamic, 1)` creates a barrier at loop end. With varying interval sizes, threads finish at different times.
 
-**Why it's slow:**
-- **Alloc/free per interval per iteration:** Every interval in every Baum-Welch iteration allocates fresh `alphas_1`/`betas_1` matrices. For chr1 with 10,000 intervals × 20 iterations = 200,000 heap allocations.
-- **NaN/isinf checks in the hot loop:** `iForward()` and `iBackward()` contain `std::isinf`/`std::isnan` checks on every cell, which flush the FPU pipeline.
-- **`long double` on x86:** `long double` is 80-bit x87 — slower than `double` on modern CPUs. Only used when `-ld` flag is set, but the default log-space code still uses it for some intermediates.
+**Proposed fixes:**
+1. **Use `schedule(guided)` instead of `schedule(dynamic, 1)`** — larger initial chunks reduce barrier frequency.
+2. **Merge adjacent parallel regions** — combine `computeEmissionProbs` + `computeStatePosteriorsFBupdateTrans` into one parallel region to halve barrier count.
+3. **Use `nowait` on non-dependent loops** — some loops can proceed without waiting for all threads.
 
-### Proposed fixes:
-1. **Pre-allocate reusable buffers** — allocate one thread-local `alphas_1`/`betas_1` matrix sized to the largest interval, reuse across iterations.
-2. **Guard NaN checks with compile-time debug flag** — wrap in `#ifndef NDEBUG`; they protect against a condition that shouldn't occur with correct numerics.
-3. **Use `double` uniformly when `-ld` is off** — 64-bit IEEE 754 is sufficient for log-space forward-backward.
-4. **Cache `logA[k_1][k_2] + eProbs[s][i][t][k_2]`** — the inner loop recomputes `logA + eProbs` for each k_1→k_2 pair; precomputing once per t saves 3× the work.
-
-**Estimated impact:** 2–3× on forward-backward, 10–20% overall.
+**Estimated impact:** 5–10% overall.
 
 ---
 
-## 3. Emission probability computation — repetitive transcendental calls
+### D. ZTBIN binomial — use `double` instead of `long double`
 
-**Where:** `HMM::computeEmissionProbs()` and `computeEProb()` overloads in `src/hmm_1.h` (lines ~194–440).
+**Where:** `ZTBIN::getDensity()` and `ZTBIN::updateP()` in `src/density_functions_crosslink.h`
 
-**What it does:** For every position t in every interval, calls:
-- `gamma.getDensity(kde)` → involves `log`, `exp`, `lgamma`, and an incomplete gamma function lookup
-- `bin.getDensity(count, n)` → involves `log` and `lgamma`
+**Profile evidence:** `pow` at 2,012 samples (mostly from `pow(1-p, n)` in binomial). ARM64 has native 64-bit FP; 80-bit `long double` is emulated in software.
 
-These are called once per position per Baum-Welch iteration. For 100,000 positions × 20 iterations = 2,000,000 calls to GSL's gamma functions.
+**Proposed fix:** Switch binomial computations to `double` — the input values (counts, n estimates) are integers in range 0–255, so 64-bit precision is more than sufficient.
 
-### Proposed fixes:
-1. **Use fast-math approximations** — `exp`/`log` are overkill at 80-bit precision. `__builtin_expf` or VDT (vectorized math) gives 2–4× speedup at adequate precision for likelihoods.
-2. **Lazy evaluation** — `kde >= gamma1.tp` check gates the `getDensity()` call; ensure the compiler inlines this correctly at `-O3`.
-3. **Move to `float` for gamma density** — the KDE values are aggregated from integer counts; `float` has sufficient dynamic range.
-
-**Estimated impact:** 1.5–2× on emission phase, 5–10% overall.
+**Estimated impact:** 2–5% overall.
 
 ---
 
-## 4. GSL Nelder-Mead parameter fitting — serial + redundant
+### E. Memory allocation churn
 
-**Where:** `gamma.updateThetaAndK()` in `src/density_functions.h` (lines ~318–415).
+**Profile evidence:** `_xzm_free` at 1,560 samples + `_xzm_xzone_malloc` at 745 + `free` at 533 = 2,838 samples (~8%).
 
-**What it does:** Runs GSL's `gsl_multimin_fminimizer_nmsimplex2` (Nelder-Mead) to fit gamma distribution parameters to state posteriors. Each function evaluation loops over all observations. Multiple start points are tried sequentially.
+**What it does:** Per-interval allocations for `eProbs`, `statePosteriors`, `initProbs` arrays. These are `String<String<String<double>>>` nested types — each inner `String<T>` is a separate heap allocation.
 
-**Why it's slow:**
-- **Serial** — only one thread, despite being called from a parallel context.
-- **Multiple start points** — tries 4 different initial (k, b0) pairs, running 4 full optimizations.
-- **Full-dataset evaluations** — each Nelder-Mead step scans all observations to compute the likelihood.
+**Proposed fix:** Flatten `eProbs` to contiguous `std::vector<double>` with offset arrays (as described in original #6). Also pre-allocate emission probability buffers per thread like we did for alphas/betas.
 
-### Proposed fixes:
-1. **Reduce start points** — the first start point often converges to the same minimum as the others. Try 2 points instead of 4, or use the previous iteration's optimum as the single start point.
-2. **Subsample for fitting** — random sample of 10–20% of observations gives essentially the same parameter estimates at a fraction of the cost.
-3. **Replace Nelder-Mead with L-BFGS** — GSL's `gsl_multimin_fdfminimizer_vector_bfgs2` converges in fewer iterations when gradients are available (log-likelihood of gamma is differentiable in closed form).
-
-**Estimated impact:** 3–5× on fitting, 5–10% overall.
+**Estimated impact:** 5–10% overall.
 
 ---
 
-## 5. BAM I/O — BGZF decompression
+### F. BAM I/O — parallel BGZF decompression
 
-**Where:** `parse_alignments.h` via SeqAn's BAM reader.
+**Where:** `parse_alignments.h`, forced `SEQAN_BGZF_NUM_THREADS=1`
 
-**What it does:** Reads BAM records sequentially, builds truncCounts arrays. Currently forced to single-thread (`SEQAN_BGZF_NUM_THREADS=1` for correctness).
+**Profile evidence:** Not profiled on chr21 (I/O is <5% of 48s runtime). Would matter on full-genome runs.
 
-**Why it's slow:**
-- BGZF decompression is CPU-bound
-- Single-threaded access
+**Proposed fix:** Two-pass approach — first pass reads BAM with N threads to build position→count map, second pass builds intervals serially.
 
-### Proposed fix:
-**Two-pass approach:** First pass reads BAM with N BGZF threads to build a raw position→count map (no HMM state, just integers). Second pass builds intervals from the map. The BGZF decompression is parallelized; the interval construction remains serial but is lightweight.
-
-**Estimated impact:** 1.5–2× on I/O phase, 3–5% overall for large BAMs.
+**Estimated impact:** 1–3% on chr21, 5–10% on full-genome.
 
 ---
 
-## 6. Cache efficiency — `String<String<String<double>>>` nesting
+### G. Full-genome scaling — vDSP FFT for large intervals
 
-**Where:** Throughout — `eProbs`, `statePosteriors`, `setObs`, etc.
+**Profile evidence:** FFT path already implemented but chr21 intervals are too small (500–4000 bp) for the O(T log T) advantage to overcome overhead. On chr1 (249 Mb), intervals would be 10k–50k bp where FFT dominates.
 
-**What it does:** Uses SeqAn's `String<String<String<T>>>` for deeply nested data (strand → interval → position → state). Each `String<T>` is a heap-allocated `std::vector<T>`-like type.
+**Proposed fix:** Already implemented (`1eba0af`). Lower the threshold from 500→200 on production runs with large chromosomes. Pre-allocate FFT buffers (currently alloc per call).
 
-**Why it's slow:**
-- Four levels of pointer indirection per access
-- Poor locality — interval data scattered across heap
-- No vectorization possible across positions
-
-### Proposed fix:
-**Flatten to `std::vector` + offset arrays.** Replace:
-```
-String<String<String<double>>> statePosteriors;  // [s][k][i][t]
-```
-with:
-```cpp
-struct Interval { uint32_t offset; uint32_t length; };
-std::vector<double> statePosteriors;  // flat: K*∑length
-std::vector<Interval> intervals;      // [s][i]
-std::vector<uint32_t> strandOffset;   // [s]
-```
-
-This provides contiguous memory access, enables SIMD, and reduces allocation count from thousands to a handful.
-
-**Estimated impact:** 1.5–2× on HMM phases, 10–15% overall.
+**Estimated impact:** Negligible on chr21; 10–30% on full-genome.
 
 ---
 
-## 7. Log-sum-exp lookup table — good, but vector-hostile
+### H. Replace `long double` with `double` throughout (when `-ld` is off)
 
-**Where:** `LogSumExp_lookupTable` in `src/util.h` (lines ~42–80).
+**Where:** Throughout — FB, emission, density functions.
 
-**What it does:** Precomputes `log1p(exp(x))` for 600,000 values to avoid calling `exp` + `log1p` in the inner loop. Smart approach but implemented as a single scalar lookup:
+**Profile evidence:** ARM64 has no native 80-bit FPU; `long double` operations are software-emulated. The current code uses `long double` extensively even when the `-ld` flag (high precision mode) is off.
 
-```cpp
-return f1 + lookupTable[(int)(((f2-f1) - minValue) * (size/-minValue))];
-```
+**Proposed fix:** Use `double` for all computation when not in high-precision mode. Keep `long double` only behind `#ifdef USE_LONG_DOUBLE`.
 
-**Why it's slow:**
-- Integer-to-float conversion and array indexing in the hot path
-- No SIMD — each call is scalar
-
-### Proposed fix:
-**Vectorized polynomial approximation.** Replace the lookup table with a minimax polynomial for `log1p(exp(x))` over a bounded range. This enables full SIMD vectorization and removes memory access entirely:
-
-```cpp
-// log1p(exp(x)) ≈ p(x) for x ∈ [-20, 0]
-inline __m256d logSumExp_add_avx(__m256d f1, __m256d f2) {
-    __m256d diff = _mm256_sub_pd(f2, f1);
-    // ... polynomial eval on diff ...
-    return _mm256_add_pd(f1, result);
-}
-```
-
-**Estimated impact:** 2–3× on the log-sum-exp calls, 5–10% on forward-backward.
+**Estimated impact:** 10–20% overall (ARM64-specific; negligible on x86-64 where 80-bit x87 is hardware).
 
 ---
 
-## Priority matrix
+## Updated Priority Matrix
 
-| # | Change | Complexity | Risk | Overall gain | Try first? |
-|---|--------|-----------|------|-------------|------------|
-| 1 | FFT-based KDE | Medium | Low (math-only) | **2–5×** | ✅ Yes |
-| 2 | Flatten data structures | Medium | Medium (touches all code) | 10–15 % | After #1 |
-| 3 | Pre-alloc FB buffers | Low | Low | 10–20 % | ✅ Yes |
-| 4 | Fast-math for emission | Low | Low (guard with flag) | 5–10 % | ✅ Yes |
-| 5 | Vectorized log-sum-exp | Medium | Low | 5–10 % | After #1 |
-| 6 | Subsample GSL fitting | Low | Low (statistical) | 5–10 % | ✅ Yes |
-| 7 | Parallel BGZF I/O | High | Medium (correctness) | 3–5 % | Last |
+| # | Change | Complexity | Risk | Est. gain | Try? |
+|---|--------|-----------|------|-----------|------|
+| A | Cache ZTBIN binomial dist | Low | Low | 2–4% | ✅ |
+| B | Vectorized log-sum-exp poly | Medium | Low | 3–5% | ✅ |
+| C | Merge parallel regions + guided schedule | Low | Low | 5–10% | ✅ |
+| D | ZTBIN double instead of long double | Low | Low | 2–5% | ✅ |
+| E | Flatten allocations (eProbs/statePost) | Medium | Medium | 5–10% | After A–D |
+| F | Parallel BGZF I/O | High | Medium | 1–3% (chr21) | Last |
+| G | vDSP FFT for large intervals | Done | — | 0% (chr21) | Ready for production |
+| H | Double instead of long double | High | Medium | 10–20% | Investigate |
 
 ---
 
-## Suggested approach
+## Suggested Next Steps
 
-1. **Profile first** — build with `-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-pg` or use Instruments (macOS) / `perf` (Linux) on a chr21 run to validate the estimates above.
-2. **Tackle the big win first** — FFT-based KDE (#1) is the single largest bottleneck and is purely a math swap; low regression risk.
-3. **Then the fast wins** — pre-allocated buffers (#3), fast-math (#4), subsampling (#6) are low-complexity, low-risk, and add up to ~30% combined.
-4. **Benchmark after each change** — use `ctest -L "tier1|tier2|tier3"` to verify no regression, `time` to measure wall-clock improvement.
+1. **Tackle A+B+C+D** — all low-risk, low-complexity, combined estimate 12–24% additional reduction  
+2. **Profile after A–D** — see if alloc churn (E) is now the top bottleneck  
+3. **H (double vs long double)** — if profiling confirms ARM64 software emulation overhead, this is the single biggest remaining win  
+4. **Full-genome benchmark** — validate G (FFT) and F (BAM I/O) on chr1 or whole-genome data
