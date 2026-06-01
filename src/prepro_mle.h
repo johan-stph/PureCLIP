@@ -68,24 +68,16 @@ void prior_mle(GAMMA &gamma1, GAMMA &gamma2,
     gamma2.b0 = -4.0; 
 
     // create set of start values for simplex algorithm
-    // gamma1
+    // gamma1 — reduced from 4 to 2 start points (saves ~50% simplex runs)
     String<double> g1_p1;
     appendValue(g1_p1, 1.0);                        // k
     appendValue(g1_p1, -2.0);                       // b0
-    String<double> g1_p2;
-    appendValue(g1_p2, 2.0);
-    appendValue(g1_p2, -2.0);
     String<double> g1_p3;
     appendValue(g1_p3, 1.0);
     appendValue(g1_p3, -4.0);
-    String<double> g1_p4;
-    appendValue(g1_p4, 2.0);
-    appendValue(g1_p4, -4.0);
     String<String<double> > g1_startSet;
     appendValue(g1_startSet, g1_p1);
-    appendValue(g1_startSet, g1_p2);
     appendValue(g1_startSet, g1_p3);
-    appendValue(g1_startSet, g1_p4);
     // estimate parameters using GSL simplex2
     std::cout << "Initial gamma1: Run simplex algorithm using different start points." << std::endl; 
     if (!gamma1.updateThetaAndK(g1_startSet, statePosteriors1, data.setObs, options.g1_kMin, options.g1_kMax, options))
@@ -95,24 +87,16 @@ void prior_mle(GAMMA &gamma1, GAMMA &gamma2,
     std::cout << "Updated parameters of gamma1 distribution using  GSL simplex2:" << std::endl;
     myPrint(gamma1);
 
-    // gamma2
+    // gamma2 — reduced from 4 to 2 start points
     String<double> g2_p1;
     appendValue(g2_p1, 1.0);                        // k
     appendValue(g2_p1, 0.0);                        // b0
-    String<double> g2_p2;
-    appendValue(g2_p2, 5.0);
-    appendValue(g2_p2, 0.0);
     String<double> g2_p3;
     appendValue(g2_p3, 1.0);
     appendValue(g2_p3, -2.0);
-    String<double> g2_p4;
-    appendValue(g2_p4, 5.0);
-    appendValue(g2_p4, -2.0);
     String<String<double> > g2_startSet;
     appendValue(g2_startSet, g2_p1);
-    appendValue(g2_startSet, g2_p2);
     appendValue(g2_startSet, g2_p3);
-    appendValue(g2_startSet, g2_p4);
     // estimate parameters using GSL simplex2
     std::cout << "Initial gamma2: Run simplex algorithm using different start points." << std::endl; 
     if (!gamma2.updateThetaAndK(g2_startSet, statePosteriors2, data.setObs, options.g2_kMin, options.g2_kMax, options))
@@ -134,7 +118,7 @@ void prior_mle(GAMMA_REG &gamma1_reg, GAMMA_REG &gamma2_reg,
     gammaC_reg.b0 = -2.0;   
     gammaC_reg.b1 = 0.9;
 
-    // create set of start values for simplex algorithm
+    // create set of start values for simplex algorithm — reduced to 2 points
     // should be somehow reasonable to avoid problems during likelihood computation
     String<double> p1;
     appendValue(p1, 4.0);
@@ -144,29 +128,9 @@ void prior_mle(GAMMA_REG &gamma1_reg, GAMMA_REG &gamma2_reg,
     appendValue(p2, 1.0);
     appendValue(p2, -2.0);
     appendValue(p2, 0.9);
-    String<double> p3;
-    appendValue(p3, 10.0);
-    appendValue(p3, -2.0);
-    appendValue(p3, 0.9);
-    String<double> p4;
-    appendValue(p4, 4.0);
-    appendValue(p4, -4.0);
-    appendValue(p4, 0.9);
-    String<double> p5;
-    appendValue(p5, 4.0);
-    appendValue(p5, -2.0);
-    appendValue(p5, 0.4);
-    String<double> p6;
-    appendValue(p6, 4.0);
-    appendValue(p6, 0.0);
-    appendValue(p6, 0.4);
     String<String<double> > startSet;
     appendValue(startSet, p1);
     appendValue(startSet, p2);
-    appendValue(startSet, p3);
-    appendValue(startSet, p4);
-    appendValue(startSet, p5);
-    appendValue(startSet, p6);
 
     // assign all sites with 1.0 to compound distribution
     String<String<String<double> > > statePosteriors;
