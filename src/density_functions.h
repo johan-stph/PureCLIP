@@ -30,6 +30,8 @@
 #include <fstream>
 #include <math.h>       // lgamma 
 
+#include "types.h"
+
 #include <boost/math/tools/minima.hpp>      // BRENT's algorithm
 #include <boost/math/distributions/negative_binomial.hpp>
 #include <boost/math/special_functions/gamma.hpp>       // normalized lower incomplete gamma function: gamma_p()
@@ -57,7 +59,7 @@ public:
     GAMMA(double tp_): tp(tp_), cache_valid(false) {}
     GAMMA() : cache_valid(false) {}
 
-    long double getDensity(double const &x);
+    Float getDensity(double const &x);
     bool updateThetaAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options, bool subsample = false); 
     bool updateThetaAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options, bool subsample = false); 
 
@@ -70,36 +72,36 @@ public:
 private:
     // Cached pre-computed values (recomputed lazily when b0/k change)
     bool cache_valid;
-    long double theta_;
-    long double inv_norm_;  // 1 / (pow(theta,k) * tgamma(k) * (1 - gamma_p(k,tp/theta)))
+    Float theta_;
+    Float inv_norm_;  // 1 / (pow(theta,k) * tgamma(k) * (1 - gamma_p(k,tp/theta)))
 };
 
 
 
 ///////
 
-long double my_GSL_X_GAMMA_forK(const gsl_vector * x, long double const & k, 
-        long double const & tp,
+Float my_GSL_X_GAMMA_forK(const gsl_vector * x, Float const & k, 
+        Float const & tp,
         String<String<String<double> > > const& statePosteriors,
         String<String<Observations> > & setObs,  
         AppOptions const&options,
         bool subsample = false)
 {       
-    const long double b0 = gsl_vector_get (x, 1);   //theta
-    long double pred = exp(b0); //k*theta;
+    const Float b0 = gsl_vector_get (x, 1);   //theta
+    Float pred = exp(b0); //k*theta;
 
-    long double nligf = boost::math::gamma_p(k, (tp*k/pred));    // changed ...
+    Float nligf = boost::math::gamma_p(k, (tp*k/pred));    // changed ...
     if (nligf == 1.0) 
     {
         SEQAN_OMP_PRAGMA(critical)
-        if (options.verbosity >= 2) std::cout << "NOTE: nligf: " << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << nligf << std::setprecision(6) << " gamma mean: " << pred << std::endl;
+        if (options.verbosity >= 2) std::cout << "NOTE: nligf: " << std::setprecision(pureclip::float_digits10() + 1) << nligf << std::setprecision(6) << " gamma mean: " << pred << std::endl;
     }
 
-    long double f = 0.0;
+    Float f = 0.0;
     const unsigned stride = subsample ? 3u : 1u;
     for (unsigned s = 0; s < 2; ++s)
     {
-        String<long double> f_S;
+        String<Float> f_S;
         resize(f_S, length(setObs[s]), 0.0, Exact());
 #if HMM_PARALLEL
         SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
@@ -110,9 +112,9 @@ long double my_GSL_X_GAMMA_forK(const gsl_vector * x, long double const & k,
                 {    
                     if (setObs[s][i].kdes[t] >= options.useKdeThreshold && setObs[s][i].truncCounts[t] >= 1) 
                     {
-                        long double kde = setObs[s][i].kdes[t];
+                        Float kde = setObs[s][i].kdes[t];
 
-                        long double p = (k-1.0)*log(kde) - k * (kde/pred + log(pred)) - k*log(1.0/k) - lgamma(k) - log(1.0 - nligf);
+                        Float p = (k-1.0)*log(kde) - k * (kde/pred + log(pred)) - k*log(1.0/k) - lgamma(k) - log(1.0 - nligf);
 
                         f_S[i] +=  p * statePosteriors[s][i][t];
                     }
@@ -122,7 +124,7 @@ long double my_GSL_X_GAMMA_forK(const gsl_vector * x, long double const & k,
         for (unsigned i = 0; i < length(setObs[s]); ++i)
             f += f_S[i];
     }
-    if (subsample) f *= 3.0L;
+    if (subsample) f *= static_cast<Float>(3.0);
     return  (-f);  
 }
 
@@ -148,11 +150,11 @@ struct Fct_GSL_X_GAMMA
     { 
     }
     // f
-    long double operator()(const gsl_vector * x)
+    Float operator()(const gsl_vector * x)
     {       
-        const long double k = gsl_vector_get (x, 0);
+        const Float k = gsl_vector_get (x, 0);
 
-        long double f = 0.0;
+        Float f = 0.0;
 
         if (k >= minK && k <= maxK)                                                                 // if valid k
         {
@@ -161,9 +163,9 @@ struct Fct_GSL_X_GAMMA
         else if (k < minK)
         {
             //std::cout << "k < kmin " << k << std::endl;
-            long double f_c = my_GSL_X_GAMMA_forK(x, minK, tp, statePosteriors, setObs, options, subsample);                // f value at constraint
-            long double f_cn = my_GSL_X_GAMMA_forK(x, (minK+0.001), tp, statePosteriors, setObs, options, subsample);       // f value inside the constraints with distance of 0.001
-            long double d = minK - k;
+            Float f_c = my_GSL_X_GAMMA_forK(x, minK, tp, statePosteriors, setObs, options, subsample);                // f value at constraint
+            Float f_cn = my_GSL_X_GAMMA_forK(x, (minK+0.001), tp, statePosteriors, setObs, options, subsample);       // f value inside the constraints with distance of 0.001
+            Float d = minK - k;
 
             // descending towards constraint:
             // -> mirror function values at constraint line - penalty
@@ -185,9 +187,9 @@ struct Fct_GSL_X_GAMMA
         }
         else                                                                                                    //if (k > maxK)
         {
-            long double f_c = my_GSL_X_GAMMA_forK(x, maxK, tp, statePosteriors, setObs, options, subsample);                // f value at constraint
-            long double f_cn = my_GSL_X_GAMMA_forK(x, (maxK-0.001), tp, statePosteriors, setObs, options, subsample);       // f value inside the constraints with distance of 0.001
-            long double d = k - maxK;
+            Float f_c = my_GSL_X_GAMMA_forK(x, maxK, tp, statePosteriors, setObs, options, subsample);                // f value at constraint
+            Float f_cn = my_GSL_X_GAMMA_forK(x, (maxK-0.001), tp, statePosteriors, setObs, options, subsample);       // f value inside the constraints with distance of 0.001
+            Float d = k - maxK;
 
             // descending towards constraint:
             // -> mirror function values at constraint line - penalty
@@ -209,10 +211,10 @@ struct Fct_GSL_X_GAMMA
     }
    
 private:
-    long double tp;
-    long double minK;
-    long double maxK;
-    long double penalty;
+    Float tp;
+    Float minK;
+    Float maxK;
+    Float penalty;
     bool subsample;
     String<String<String<double> > > statePosteriors;
     String<String<Observations> > & setObs;
@@ -231,23 +233,23 @@ struct Fct_GSL_X_GAMMA_fixK
     { 
     }
     // f
-    long double operator()(const gsl_vector * x)
+    Float operator()(const gsl_vector * x)
     {       
-        const long double b0 = gsl_vector_get (x, 0);   // theta
+        const Float b0 = gsl_vector_get (x, 0);   // theta
 
-        long double pred = exp(b0);     // k*theta;
+        Float pred = exp(b0);     // k*theta;
 
-        long double nligf = boost::math::gamma_p((long double)k, (long double)tp*k/pred);       // ...changed
+        Float nligf = boost::math::gamma_p(static_cast<Float>(k), static_cast<Float>(tp)*k/pred);       // ...changed
         if (nligf == 1.0) 
         {
             SEQAN_OMP_PRAGMA(critical)
-            if (options.verbosity >= 2) std::cout << "NOTE: nligf: " << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << nligf << std::setprecision(6) << " gamma mean: " << pred << std::endl;
+            if (options.verbosity >= 2) std::cout << "NOTE: nligf: " << std::setprecision(pureclip::float_digits10() + 1) << nligf << std::setprecision(6) << " gamma mean: " << pred << std::endl;
         }
 
-        long double f = 0.0;
+        Float f = 0.0;
         for (unsigned s = 0; s < 2; ++s)
         {
-            String<long double> f_S;
+            String<Float> f_S;
             resize(f_S, length(setObs[s]), 0.0, Exact());
 #if HMM_PARALLEL
             SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
@@ -258,9 +260,9 @@ struct Fct_GSL_X_GAMMA_fixK
                 {    
                     if (setObs[s][i].kdes[t] >= options.useKdeThreshold && setObs[s][i].truncCounts[t] >= 1) 
                     {
-                        long double kde = setObs[s][i].kdes[t];
+                        Float kde = setObs[s][i].kdes[t];
            
-                        long double p = (k-1.0)*log(kde) - k * (kde/pred + log(pred)) - k*log(1.0/k) - lgamma(k) - log(1.0 - nligf);
+                        Float p = (k-1.0)*log(kde) - k * (kde/pred + log(pred)) - k*log(1.0/k) - lgamma(k) - log(1.0 - nligf);
 
                         f_S[i] +=  p * statePosteriors[s][i][t];
                     }
@@ -274,8 +276,8 @@ struct Fct_GSL_X_GAMMA_fixK
     }
    
 private:
-    long double tp;
-    long double k;
+    Float tp;
+    Float k;
     String<String<String<double> > > statePosteriors;
     String<String<Observations> > &setObs;
     AppOptions options;
@@ -560,27 +562,27 @@ bool GAMMA::updateThetaAndK(String<String<double> > &startSet,
 ///////////////////////////////////////////////
 
 
-long double GAMMA::getDensity(double const &x)   
+Float GAMMA::getDensity(double const &x)   
 {
     if (x < this->tp) return 0.0;
 
     // Lazy recompute: theta, tgamma(k), gamma_p only change when b0/k are updated
     if (!cache_valid)
     {
-        long double lk = (long double)this->k;
-        theta_ = (long double)exp((long double)this->b0) / lk;
-        long double nligf = boost::math::gamma_p(lk, (long double)this->tp / theta_);
+        Float lk = static_cast<Float>(this->k);
+        theta_ = static_cast<Float>(exp(static_cast<Float>(this->b0))) / lk;
+        Float nligf = boost::math::gamma_p(lk, static_cast<Float>(this->tp) / theta_);
         if (nligf == 1.0)
         {
             std::cout << "ERROR: (1 - nligf) is 0! Not set to max. value, should not happen for non-GLM gamma model!" << std::endl;
         }
-        inv_norm_ = 1.0L / (pow(theta_, lk) * tgamma(lk) * (1.0L - nligf));
+        inv_norm_ = static_cast<Float>(1.0) / (pow(theta_, lk) * tgamma(lk) * (static_cast<Float>(1.0) - nligf));
         cache_valid = true;
     }
 
     // Fast path: exp((k-1)*log(x) - x/theta) / normalizer
-    long double lk = (long double)this->k;
-    long double f1 = exp((lk - 1.0L) * log((long double)x) - (long double)x / theta_);
+    Float lk = static_cast<Float>(this->k);
+    Float f1 = exp((lk - static_cast<Float>(1.0)) * log(static_cast<Float>(x)) - static_cast<Float>(x) / theta_);
     return f1 * inv_norm_;
 }
 

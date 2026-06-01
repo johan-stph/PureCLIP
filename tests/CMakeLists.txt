@@ -3,6 +3,13 @@
 #
 # CTest-based regression test suite for PureCLIP.
 #
+# Unit tests are compiled as part of the build using PureCLIP's own
+# dependencies (SeqAn, Boost, GSL).
+# =============================================================================
+
+# =============================================================================
+# Regression tests
+#
 # Labels
 # ------
 #   setup      – data-generation helpers (not real tests)
@@ -36,6 +43,30 @@ set(BIN         "$<TARGET_FILE:pureclip>")
 file(MAKE_DIRECTORY "${OUT}/synthetic")
 file(MAKE_DIRECTORY "${OUT}/chrM")
 file(MAKE_DIRECTORY "${OUT}/chr21")
+
+# =============================================================================
+# Unit tests
+# =============================================================================
+
+add_executable(pureclip_unit_test
+    ${T}/unit/test_gamma.cpp
+)
+target_include_directories(pureclip_unit_test SYSTEM PRIVATE ${PURECLIP_INCLUDE_DIRS})
+target_include_directories(pureclip_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+target_include_directories(pureclip_unit_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(pureclip_unit_test PRIVATE ${PURECLIP_COMPILE_DEFS})
+target_compile_options(pureclip_unit_test PRIVATE ${SEQAN_CXX_FLAGS_LIST} ${OpenMP_CXX_FLAGS_LIST})
+target_link_libraries(pureclip_unit_test PRIVATE
+    ${Boost_LIBRARIES}
+    ${SEQAN_LIBRARIES}
+    ${GSL_LIBRARIES}
+    ${ACCELERATE_FRAMEWORK})
+
+add_test(NAME unit_tests
+    COMMAND pureclip_unit_test)
+set_tests_properties(unit_tests PROPERTIES
+    LABELS "unit"
+    TIMEOUT 10)
 
 # =============================================================================
 # Tier 1 – Synthetic

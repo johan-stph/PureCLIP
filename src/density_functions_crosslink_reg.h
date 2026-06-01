@@ -28,6 +28,8 @@
 #include <fstream>
 #include <math.h>       // lgamma 
 
+#include "types.h"
+
 #include <boost/math/tools/minima.hpp>      // BRENT's algorithm
 #include <boost/math/distributions/negative_binomial.hpp>
 #include <boost/math/special_functions/gamma.hpp>       // normalized lower incomplete gamma function: gamma_p()
@@ -51,17 +53,17 @@ using namespace seqan;
 class ZTBIN_REG
 {
 public:
-    ZTBIN_REG(long double b0_): b0(b0_) {}
+    ZTBIN_REG(Float b0_): b0(b0_) {}
     ZTBIN_REG() {}
  
-    long double getDensity(unsigned const &k, unsigned const &n, long double const &pred, AppOptions const& options);
-    long double getDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
+    Float getDensity(unsigned const &k, unsigned const &n, Float const &pred, AppOptions const& options);
+    Float getDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
 
     void updateP(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, AppOptions const& options);
     void updateRegCoeffs(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, AppOptions const&options);
 
-    long double b0;   // intercept
-    String<long double> regCoeffs;
+    Float b0;   // intercept
+    String<Float> regCoeffs;
 };
 
 
@@ -69,15 +71,15 @@ public:
 // for given motif m; optimize b_m
 struct FctLL_ZTBIN_REG
 {
-    FctLL_ZTBIN_REG(long double const& b0_, char const& m_, String<String<String<double> > > const& statePosteriors_,  String<String<Observations> > &setObs_, AppOptions const&options_) : b0(b0_), m(m_), statePosteriors(statePosteriors_), setObs(setObs_), options(options_)
+    FctLL_ZTBIN_REG(Float const& b0_, char const& m_, String<String<String<double> > > const& statePosteriors_,  String<String<Observations> > &setObs_, AppOptions const&options_) : b0(b0_), m(m_), statePosteriors(statePosteriors_), setObs(setObs_), options(options_)
     { 
     }
     double operator()(double const& b)
     {
-        long double ll = 0.0;       
+        Float ll = 0.0;       
         for (unsigned s = 0; s < 2; ++s)
         {
-            String<long double> lls;
+            String<Float> lls;
             resize(lls, length(setObs[s]), 0.0, Exact());
 #if HMM_PARALLEL
             SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
@@ -91,15 +93,15 @@ struct FctLL_ZTBIN_REG
                     {
                         unsigned k = setObs[s][i].truncCounts[t];
                         unsigned n = (setObs[s][i].nEstimates[t] > setObs[s][i].truncCounts[t]) ? (setObs[s][i].nEstimates[t]) : (setObs[s][i].truncCounts[t]); 
-                        long double x = setObs[s][i].fimoScores[t];
+                        Float x = setObs[s][i].fimoScores[t];
 
-                        if (((long double)(k) / (long double)(n)) <= options.maxkNratio)
+                        if ((static_cast<Float>(k) / static_cast<Float>(n)) <= options.maxkNratio)
                         {
-                            long double p = 1.0/(1.0+exp(-b0 - b*x));
+                            Float p = 1.0/(1.0+exp(-b0 - b*x));
                         
                             // l = log(1.0) -log(1.0 - pow((1.0-p), n)) + log (n over k) + k*log(p) + (n-k)*log(1.0-p);
                             // ignore parts not meaning for optimization! 
-                            long double l = -log(1.0 - pow((1.0-p), n)) + k*log(p) + (n-k)*log(1.0-p);
+                            Float l = -log(1.0 - pow((1.0-p), n)) + k*log(p) + (n-k)*log(1.0-p);
                             lls[i] += l * statePosteriors[s][i][t];
                         }
                     }
@@ -113,7 +115,7 @@ struct FctLL_ZTBIN_REG
     }
 
 private:
-    long double b0;
+    Float b0;
     char m;     // motif ID
     String<String<String<double> > > statePosteriors;
     String<String<Observations> > &setObs;
@@ -128,14 +130,14 @@ void ZTBIN_REG::updateRegCoeffs(String<String<String<double> > > &statePosterior
     int bits = 60;
     boost::uintmax_t maxIter = options.maxIter_brent;
     
-    long double bMin = 0.0;
-    long double bMax = 1.0;
+    Float bMin = 0.0;
+    Float bMax = 1.0;
 
     // for each input motif learn independent regCoeff (each position only one motif match with score assigned)
     for (unsigned char m = 0; m < options.nInputMotifs; ++m)
     {
         FctLL_ZTBIN_REG fct_ZTBIN_REG(this->b0, m, statePosteriors, setObs, options);
-        std::pair<long double, long double> res = boost::math::tools::brent_find_minima(fct_ZTBIN_REG, bMin, bMax, bits, maxIter);         
+        std::pair<Float, Float> res = boost::math::tools::brent_find_minima(fct_ZTBIN_REG, bMin, bMax, bits, maxIter);         
         this->regCoeffs[m] = res.first;
     }
 }
@@ -146,8 +148,8 @@ void ZTBIN_REG::updateRegCoeffs(String<String<String<double> > > &statePosterior
 void ZTBIN_REG::updateP(String<String<String<double> > > &statePosteriors, 
                   String<String<Observations> > &setObs, AppOptions const& options)
 {
-    long double sum1 = 0.0;
-    long double sum2 = 0.0;
+    Float sum1 = 0.0;
+    Float sum2 = 0.0;
     for (unsigned s = 0; s < 2; ++s)
     {
         for (unsigned i = 0; i < length(setObs[s]); ++i)
@@ -159,9 +161,9 @@ void ZTBIN_REG::updateP(String<String<String<double> > > &statePosteriors,
                     // p^ = (k-1)/(n-1); 'Truncated Binomial and Negative Binomial Distributions' Rider, 1955
                     unsigned k = setObs[s][i].truncCounts[t];
                     unsigned n = (setObs[s][i].nEstimates[t] > setObs[s][i].truncCounts[t]) ? (setObs[s][i].nEstimates[t]) : (setObs[s][i].truncCounts[t]);      
-                    if (((long double)(k) / (long double)(n)) <= options.maxkNratio)
+                    if ((static_cast<Float>(k) / static_cast<Float>(n)) <= options.maxkNratio)
                     {
-                        sum1 += statePosteriors[s][i][t] * ((double)(k - 1)/(double)(n - 1));        
+                        sum1 += statePosteriors[s][i][t] * (static_cast<double>(k - 1)/static_cast<double>(n - 1));        
                         sum2 += statePosteriors[s][i][t];
                     }
                  }
@@ -169,7 +171,7 @@ void ZTBIN_REG::updateP(String<String<String<double> > > &statePosteriors,
         }
     }
     //std::cout << "updateP: sum1" << sum1 << " sum2: " << sum2 << " p: " << (sum1/sum2) << std::endl;
-    long double p = sum1/sum2;
+    Float p = sum1/sum2;
     this->b0 = log(p/(1.0-p));
 
     updateRegCoeffs(statePosteriors, setObs, options);
@@ -177,7 +179,7 @@ void ZTBIN_REG::updateP(String<String<String<double> > > &statePosteriors,
 
 
 // k: diagnostic events (de); n: read counts (c)
-long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, long double const &pred, AppOptions const& /*options*/)
+Float ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, Float const &pred, AppOptions const& /*options*/)
 {
     if (k == 0) return 0.0;     // zero-truncated
 
@@ -186,19 +188,19 @@ long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, long dou
     n2 = (n2 > k2) ? n2 : k2;          // make sure n >= k      (or limit k?)
     
     // use boost implementation, maybe avoids overflow
-    boost::math::binomial_distribution<long double> boostBin;
-    boostBin = boost::math::binomial_distribution<long double> ((int)n2, (long double)pred); 
+    boost::math::binomial_distribution<Float> boostBin;
+    boostBin = boost::math::binomial_distribution<Float> ((int)n2, static_cast<Float>(pred)); 
 
-    long double res = boost::math::pdf(boostBin, k2);
+    Float res = boost::math::pdf(boostBin, k2);
     if (std::isnan(res))   // or any other error?
     {
         std::cerr << "ERROR: binomial pdf is : " << res << std::endl;
         return 0.0;
     }
-    return res * (long double)(1.0/(1.0 - pow((1.0 - (long double)pred), n2)));     // zero-truncated      TODO ???
+    return res * static_cast<Float>(1.0/(1.0 - pow((1.0 - static_cast<Float>(pred)), n2)));     // zero-truncated      TODO ???
 }
 
-long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
+Float ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
 {
     if (k == 0) return 0.0;     // zero-truncated
 
@@ -206,19 +208,19 @@ long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, AppOptio
     unsigned k2 = k;
     n2 = (n2 > k2) ? n2 : k2;          // make sure n >= k      (or limit k?)
    
-    long double pred = 1.0/(1.0+exp(- this->b0));
+    Float pred = 1.0/(1.0+exp(- this->b0));
 
     // use boost implementation, maybe avoids overflow
-    boost::math::binomial_distribution<long double> boostBin;
-    boostBin = boost::math::binomial_distribution<long double> ((int)n2, pred); 
+    boost::math::binomial_distribution<Float> boostBin;
+    boostBin = boost::math::binomial_distribution<Float> ((int)n2, pred); 
 
-    long double res = boost::math::pdf(boostBin, k2);
+    Float res = boost::math::pdf(boostBin, k2);
     if (std::isnan(res) || std::isinf(res))   // or any other error?
     {
         std::cerr << "ERROR: binomial pdf is : " << res << std::endl;
         return 0.0;
     }
-    return res * (long double)(1.0/(1.0 - pow((1.0 - pred), n2)));     // zero-truncated      TODO ???
+    return res * static_cast<Float>(1.0/(1.0 - pow((1.0 - pred), n2)));     // zero-truncated      TODO ???
 }
 
 

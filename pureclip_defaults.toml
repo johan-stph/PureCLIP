@@ -1,0 +1,81 @@
+# =============================================================================
+# PureCLIP — default configuration file
+# =============================================================================
+# Copy this file and edit the values you need to change.
+# Most parameters have sensible defaults and can be left as-is.
+#
+# Usage:
+#   pureclip -c my_config.toml
+#
+# CLI flags override TOML values.  Mix and match:
+#   pureclip -c base.toml --bandwidth 100 --threads 8
+# =============================================================================
+
+# ── Required: input data ────────────────────────────────────────────────────
+# These MUST be set (no defaults).  Either here or via CLI.
+
+# BAM file(s) with crosslink reads.  For replicates, provide multiple paths.
+#bam = ["aligned.R2.bam"]
+# BAI index file(s) — one per BAM.
+#bai = ["aligned.R2.bam.bai"]
+# Reference genome (FASTA, may be gzipped).
+#genome = "ref.fa"
+
+# ── Required: output ────────────────────────────────────────────────────────
+# Prefix for output files.  Produces:
+#   <prefix>_sites.bed    — called crosslink sites
+#   <prefix>_regions.bed  — merged binding regions
+#   <prefix>_params.txt   — learned model parameters
+#output_prefix = "pureclip_out"
+
+# ── Optional: genomic subsets ───────────────────────────────────────────────
+# Chromosomes for learning (semicolon-separated).  If unset, uses all contigs.
+# Useful to reduce runtime on large genomes.
+#learn_on = "chr1;chr2;chr3"
+# Chromosomes to apply the learned model.  If unset, same as learn_on.
+#apply_on = ""
+
+# ── Performance ─────────────────────────────────────────────────────────────
+threads = 1              # Number of threads for model learning (default: 1)
+#threads_apply = 0       # Threads for applying model; default = min(threads, #chromosomes)
+
+# ── Model: bandwidths ───────────────────────────────────────────────────────
+bandwidth = 50           # KDE bandwidth for enrichment signal (1–500, default: 50)
+bandwidth_n = 50         # KDE bandwidth for binomial N estimation (≤ 4× bandwidth)
+
+# ── Model: binding mode ─────────────────────────────────────────────────────
+# 0 = short defined motifs (PUM2, RBFOX2, etc.) — default
+# 1 = larger crosslink clusters (low-complexity motifs)
+binding_characteristics = 0
+
+# ── Model: initial values ───────────────────────────────────────────────────
+bin1_p_init = 0.01       # Initial binomial p for non-crosslink state
+bin2_p_init = 0.15       # Initial binomial p for crosslink state
+
+# ── Model: thresholds ──────────────────────────────────────────────────────
+# Minimum transition probability from enriched→crosslink (prevents collapse)
+min_trans_prob_crosslink = 0.0001
+# Prior enrichment threshold (KDE units, ≈ read starts at one position)
+prior_enrichment_threshold = 7
+
+# ── Model: convergence ──────────────────────────────────────────────────────
+max_iter_baumwelch = 50       # Max Baum-Welch outer iterations
+max_iter_simplex = 500        # Max GSL simplex iterations (per sub-problem)
+gamma_k_convergence = 1e-4    # Convergence tolerance for gamma shape k
+gamma_theta_convergence = 1e-4
+bin_p_convergence = 1e-4
+
+# ── Model: gamma shape constraints ──────────────────────────────────────────
+g1_k_min = 1.0           # Min shape for non-enriched gamma
+g1_k_max = 10.0          # Max shape for non-enriched gamma
+g2_k_min = 1.0           # Min shape for enriched gamma
+g2_k_max = 10.0          # Max shape for enriched gamma
+
+# ── Scoring ─────────────────────────────────────────────────────────────────
+scoring_scheme = 0       # 0=log-posterior-ratio (default), 1=crosslink-focused,
+                         # 2=enrichment-focused, 3=balanced
+merge_distance = 8       # bp to merge adjacent crosslink sites into regions
+
+# ── Debug / precision ───────────────────────────────────────────────────────
+verbosity = 1            # 0=quiet, 1=normal, 2=verbose, 3=very-verbose
+#high_precision = false   # Use long double (slower, only if needed for stability)

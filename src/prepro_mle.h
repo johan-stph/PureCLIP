@@ -27,6 +27,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "types.h"
+
 using namespace seqan;
 
 void prior_mle(GAMMA &gamma1, GAMMA &gamma2,  
@@ -175,7 +177,7 @@ void prior_mle(GAMMA_REG &gamma1_reg, GAMMA_REG &gamma2_reg,
             for (unsigned t = 0; t < data.setObs[s][i].length(); ++t)
             {
                 double x = std::max(data.setObs[s][i].rpkms[t], options.minRPKMtoFit);
-                long double pred = exp(gammaC_reg.b0 + gammaC_reg.b1 * x);
+                Float pred = exp(gammaC_reg.b0 + gammaC_reg.b1 * x);
 
                 if (data.setObs[s][i].kdes[t] < pred)                       // most probably non-enriched    .. (Note: pred + 2.0 for RNA-seq data)
                 {                                                           // allow for variation! 
@@ -265,7 +267,7 @@ void prior_mle(GAMMA_REG &gamma1_reg, GAMMA_REG &gamma2_reg,
 
 
 template<typename TBIN>
-void estimateTransitions(String<String<long double> > &initTrans, 
+void estimateTransitions(String<String<Float> > &initTrans, 
                          GAMMA &gamma1, GAMMA &gamma2, TBIN &bin1, TBIN &bin2, 
                          Data &data,
                          AppOptions &options)
@@ -290,22 +292,22 @@ void estimateTransitions(String<String<long double> > &initTrans,
             unsigned prev_state = 0;
             bool prev_valid = true;
 
-            long double g1_d = 1.0;
-            long double g2_d = 0.0;
+            Float g1_d = 1.0;
+            Float g2_d = 0.0;
             if (kde >= gamma1.tp) 
             {
                 g1_d = gamma1.getDensity(kde);
                 g2_d = gamma2.getDensity(kde); 
             }
-            long double bin1_d = 1.0;
-            long double bin2_d = 0.0;
+            Float bin1_d = 1.0;
+            Float bin2_d = 0.0;
             if (k > 0)
             {
                 bin1_d = bin1.getDensity(k, n, options);
                 bin2_d = bin2.getDensity(k, n, options);
             }
 
-            long double max = g1_d * bin1_d;   // most likely non-enriched and no crosslink "0"
+            Float max = g1_d * bin1_d;   // most likely non-enriched and no crosslink "0"
             if (g1_d * bin2_d > max)      // most likely non-enriched and crosslink "1" 
             {
                 max = g1_d * bin2_d;
@@ -385,7 +387,7 @@ void estimateTransitions(String<String<long double> > &initTrans,
    
         for (unsigned k_2 = 0; k_2 < 4; ++k_2)
         {
-            initTrans[k_1][k_2] = (long double)transFreqs[k_1][k_2]/(long double)sum;     
+            initTrans[k_1][k_2] = static_cast<Float>(transFreqs[k_1][k_2])/static_cast<Float>(sum);     
         }
     }
     if (options.verbosity >= 1) 
@@ -404,7 +406,7 @@ void estimateTransitions(String<String<long double> > &initTrans,
 
 
 template<typename TBIN>
-void estimateTransitions(String<String<long double> > &initTrans, 
+void estimateTransitions(String<String<Float> > &initTrans, 
                          GAMMA_REG &gamma1, GAMMA_REG &gamma2, TBIN &bin1, TBIN &bin2, 
                          Data &data,
                          AppOptions &options)
@@ -426,27 +428,27 @@ void estimateTransitions(String<String<long double> > &initTrans,
             double kde = data.setObs[s][i].kdes[0];
             unsigned k = data.setObs[s][i].truncCounts[0];
             unsigned n = data.setObs[s][i].nEstimates[0];
-            long double gamma1_pred = exp(gamma1.b0 + gamma1.b1 * data.setObs[s][i].rpkms[0]);
-            long double gamma2_pred = exp(gamma2.b0 + gamma2.b1 * data.setObs[s][i].rpkms[0]);
+            Float gamma1_pred = exp(gamma1.b0 + gamma1.b1 * data.setObs[s][i].rpkms[0]);
+            Float gamma2_pred = exp(gamma2.b0 + gamma2.b1 * data.setObs[s][i].rpkms[0]);
             unsigned prev_state = 0;
             bool prev_valid = true;
 
-            long double g1_d = 1.0;
-            long double g2_d = 0.0;
+            Float g1_d = 1.0;
+            Float g2_d = 0.0;
             if (kde >= gamma1.tp)
             {
                 g1_d = gamma1.getDensity(kde, gamma1_pred, options);
                 g2_d = gamma2.getDensity(kde, gamma2_pred, options);
             }
-            long double bin1_d = 1.0;
-            long double bin2_d = 0.0;
+            Float bin1_d = 1.0;
+            Float bin2_d = 0.0;
             if (k > 0)
             {
                 bin1_d = bin1.getDensity(k, n, options);
                 bin2_d = bin2.getDensity(k, n, options);
             }
 
-            long double max = g1_d * bin1_d;   // most likely non-enriched and no crosslink "0"
+            Float max = g1_d * bin1_d;   // most likely non-enriched and no crosslink "0"
             if (g1_d * bin2_d> max)      // most likely non-enriched and crosslink "1" 
             {
                 max = g1_d * bin2_d;
