@@ -12,6 +12,34 @@ endif()
 # Name of project and that it is C++ only.
 project (PureCLIP CXX)
 
+# ----- auto-version from git tags --------------------------------------------
+execute_process(
+    COMMAND git describe --tags --match "v*" --dirty
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+    OUTPUT_VARIABLE GIT_DESCRIBE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if (GIT_DESCRIBE)
+    string(REGEX REPLACE "^v" "" PURE_CLIP_VERSION "${GIT_DESCRIBE}")
+    string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match "${PURE_CLIP_VERSION}")
+    if (_match)
+        set(CPACK_PACKAGE_VERSION_MAJOR ${CMAKE_MATCH_1})
+        set(CPACK_PACKAGE_VERSION_MINOR ${CMAKE_MATCH_2})
+        set(CPACK_PACKAGE_VERSION_PATCH ${CMAKE_MATCH_3})
+    endif()
+else()
+    set(PURE_CLIP_VERSION "unknown")
+endif()
+string(TIMESTAMP PURE_CLIP_BUILD_DATE "%B %Y")
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/version.h
+    @ONLY
+)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 # C++23 — both compilers on supported platforms support it (AppleClang 17+,
 # GCC 13+) and SeqAn 2.5 tests against C++23 in its own CI.
 # The codebase compiles cleanly at this standard with zero errors.
@@ -173,9 +201,7 @@ if (UNIX AND NOT APPLE)
 elseif (UNIX AND APPLE)
     set (CPACK_SYSTEM_NAME "mac64${LINK_TYPE}")
 endif()
-set (CPACK_PACKAGE_VERSION_MAJOR "2")
-set (CPACK_PACKAGE_VERSION_MINOR "0")
-set (CPACK_PACKAGE_VERSION_PATCH "1")
+
 set (CPACK_GENERATOR "TGZ")
 set (CPACK_INSTALLED_DIRECTORIES
     "${CMAKE_CURRENT_SOURCE_DIR}/../util;util"

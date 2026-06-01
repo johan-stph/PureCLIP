@@ -22,6 +22,7 @@
 // =======================================================================
 
 #include <fstream>
+#include "version.h"
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/stream.h>
@@ -73,8 +74,8 @@ parseCommandLine(AppOptions & options, int argc, char const ** argv)
     ArgumentParser parser("winextract");
     // Set short description, version, and date.
     setShortDescription(parser, "Extract sequence window");
-    setVersion(parser, "0.1.1");
-    setDate(parser, "June 2026");
+    setVersion(parser, PURE_CLIP_VERSION);
+    setDate(parser, PURE_CLIP_BUILD_DATE);
 
     // Define usage line and long description.
     addUsageLine(parser, "[\\fIOPTIONS\\fP] \"\\fITEXT\\fP\"");
