@@ -17,12 +17,14 @@ project (PureCLIP CXX)
 # SeqAn 2.5 is C++14/17 compatible; we opt into 17 for the whole project.
 #
 # Why not C++20/23?
-# SeqAn 2.x is no longer actively developed and has not been audited against
-# C++20/23. Several SeqAn headers rely on patterns (e.g. implicit conversions,
-# iterator category assumptions) that became hard errors or changed behaviour
-# in C++20. Upgrading the standard without a full test suite against a known
-# good dataset risks silent numerical differences in the HMM output.
-# Revisit if/when PureCLIP migrates to SeqAn 3 (which is C++20-native).
+# SeqAn 2.5 itself is tested against C++23 in its own CI (see seqan/seqan
+# .github/workflows/ci_linux.yml) so the library is not the blocker.
+# The constraint is on PureCLIP: there is no automated numerical regression
+# test suite to verify that the HMM output is bit-for-bit identical after a
+# standard bump. C++20 changed several implicit conversion and range rules that
+# could silently affect floating-point evaluation order in the density
+# functions. C++17 is sufficient for the current codebase and safer until a
+# validation dataset + expected-output check is added to CI.
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_CXX_EXTENSIONS OFF)
