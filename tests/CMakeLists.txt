@@ -35,6 +35,7 @@ set(BIN         "$<TARGET_FILE:pureclip>")
 
 file(MAKE_DIRECTORY "${OUT}/synthetic")
 file(MAKE_DIRECTORY "${OUT}/chrM")
+file(MAKE_DIRECTORY "${OUT}/chr21")
 
 # =============================================================================
 # Tier 1 – Synthetic
