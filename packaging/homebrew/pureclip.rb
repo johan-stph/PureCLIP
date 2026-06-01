@@ -1,4 +1,4 @@
-class Pureclip < Formula
+class Pureclip2 < Formula
   desc "Detect protein-RNA interaction footprints from single-nucleotide CLIP-seq data"
   homepage "https://github.com/johan-stph/PureCLIP"
   url "https://github.com/johan-stph/PureCLIP/archive/refs/tags/v2.0.0.tar.gz"
