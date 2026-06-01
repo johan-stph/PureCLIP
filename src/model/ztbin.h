@@ -25,6 +25,8 @@
 #include <fstream>
 #include <math.h>       // lgamma 
 
+#include "types.h"
+
 #include <boost/math/tools/minima.hpp>      // BRENT's algorithm
 #include <boost/math/distributions/negative_binomial.hpp>
 #include <boost/math/special_functions/gamma.hpp>       // normalized lower incomplete gamma function: gamma_p()
@@ -48,14 +50,14 @@ using namespace seqan;
 class ZTBIN
 {
 public:
-    ZTBIN(long double p_): p(p_) {}
+    ZTBIN(Float p_): p(p_) {}
     ZTBIN() {}
  
-    long double getDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
+    Float getDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
 
     void updateP(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, AppOptions const& options); 
 
-    long double p;
+    Float p;
 };
 
 
@@ -63,8 +65,8 @@ public:
 void ZTBIN::updateP(String<String<String<double> > > &statePosteriors, 
                   String<String<Observations> > &setObs, AppOptions const& options)
 {
-    long double sum1 = 0.0; 
-    long double sum2 = 0.0;
+    Float sum1 = 0.0; 
+    Float sum2 = 0.0;
 
     for (unsigned s = 0; s < 2; ++s)
     {
@@ -77,9 +79,9 @@ void ZTBIN::updateP(String<String<String<double> > > &statePosteriors,
                     // p^ = (k-1)/(n-1); 'Truncated Binomial and Negative Binomial Distributions' Rider, 1955
                     unsigned k = setObs[s][i].truncCounts[t];
                     unsigned n = (setObs[s][i].nEstimates[t] > setObs[s][i].truncCounts[t]) ? (setObs[s][i].nEstimates[t]) : (setObs[s][i].truncCounts[t]);   
-                    if (((long double)(k) / (long double)(n)) <= options.maxkNratio)
+                    if ((static_cast<Float>(k) / static_cast<Float>(n)) <= options.maxkNratio)
                     {
-                        sum1 += statePosteriors[s][i][t] * ((long double)(k - 1) / (long double)(n - 1));        
+                        sum1 += statePosteriors[s][i][t] * (static_cast<Float>(k - 1) / static_cast<Float>(n - 1));        
                         sum2 += statePosteriors[s][i][t];
                     }
                 }
@@ -92,7 +94,7 @@ void ZTBIN::updateP(String<String<String<double> > > &statePosteriors,
 
 
 // k: diagnostic events (de); n: read counts (c)
-long double ZTBIN::getDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
+Float ZTBIN::getDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
 {
     if (k == 0) return 0.0;     // zero-truncated
 
@@ -101,16 +103,16 @@ long double ZTBIN::getDensity(unsigned const &k, unsigned const &n, AppOptions c
     n2 = (n2 > k2) ? n2 : k2;          // make sure n >= k      (or limit k?)
   
     // use boost implementation, maybe avoids overflow
-    boost::math::binomial_distribution<long double> boostBin;
-    boostBin = boost::math::binomial_distribution<long double> ((int)n2, this->p); 
+    boost::math::binomial_distribution<Float> boostBin;
+    boostBin = boost::math::binomial_distribution<Float> ((int)n2, this->p); 
 
-    long double res = boost::math::pdf(boostBin, k2);
+    Float res = boost::math::pdf(boostBin, k2);
     if (std::isnan(res) || std::isinf(res))   // or any other error?
     {
         std::cerr << "ERROR: binomial pdf is : " << res << std::endl;
         return 0.0;
     }
-    return res * (long double)(1.0/(1.0 - pow((1.0 - this->p), n2)));     // zero-truncated
+    return res * static_cast<Float>(1.0/(1.0 - pow((1.0 - this->p), n2)));     // zero-truncated
 }
 
 // max k?

@@ -40,7 +40,7 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/version.h
     @ONLY
 )
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 # C++23 — both compilers on supported platforms support it (AppleClang 17+,
 # GCC 13+) and SeqAn 2.5 tests against C++23 in its own CI.
@@ -140,7 +140,7 @@ separate_arguments (OpenMP_CXX_FLAGS_LIST   UNIX_COMMAND "${OpenMP_CXX_FLAGS}")
 
 # Warnings: enable a broad set for all builds. Treated as errors only when
 # the caller explicitly sets -DWERROR=ON (used by the strict CI job).
-set (PURECLIP_WARNING_FLAGS -Wall -Wextra -Wpedantic)
+set (PURECLIP_WARNING_FLAGS -Wall -Wextra -Wpedantic -Wno-deprecated-literal-operator)
 if (WERROR)
     list (APPEND PURECLIP_WARNING_FLAGS -Werror)
 endif()
@@ -177,11 +177,19 @@ endif()
 add_executable (pureclip
     pureclip.cpp
     util.h
+    toml.hpp
+    cli/cli.h
+    cli/config.h
     call_sites.h
-    parse_alignments.h
-    prepro_mle.h
-    hmm_1.h
-    density_functions.h)
+    call_sites_replicates.h
+    io/bam.h
+    io/bed.h
+    model/hmm.h
+    model/prepro.h
+    model/gamma.h
+    model/gamma_reg.h
+    model/ztbin.h
+    model/ztbin_reg.h)
 
 add_executable (winextract winextract.cpp)
 
@@ -205,7 +213,7 @@ else()
     set (EXTRADIR "share/pureclip")
 endif()
 install (TARGETS pureclip winextract RUNTIME DESTINATION "${BINDIR}")
-install (FILES "../LICENSE.md" DESTINATION "${EXTRADIR}")
+install (FILES "../LICENSE.md" "../pureclip_defaults.toml" DESTINATION "${EXTRADIR}")
 
 # Packaging
 if (UNIX AND NOT APPLE)

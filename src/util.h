@@ -29,6 +29,8 @@
 #include <fstream>
 #include <seqan/bed_io.h>
 
+#include "types.h"
+
 #include <math.h>
 
 #ifdef __APPLE__
@@ -57,7 +59,7 @@ namespace seqan2 {
         public:
             unsigned size;
             double minValue;
-            String<long double> lookupTable;
+            String<Float> lookupTable;
 
             LogSumExp_lookupTable() : size(0), minValue(0.0) {}
 
@@ -69,7 +71,7 @@ namespace seqan2 {
             std::cout << "Created look-up table for values from " << ((0 * -minValue/size) + minValue) << " to " << ((size * -minValue/size) + minValue) << " with step size " << (-minValue/size) << " (size: " << size<< ")." << std::endl;
         }
 
-            long double logSumExp_add(long double f1, long double f2) const
+            Float logSumExp_add(Float f1, Float f2) const
             {
                 if (f1 > f2)
                 {
@@ -284,7 +286,7 @@ namespace seqan2 {
         TBIN    bin1;
         TBIN    bin2;
 
-        String<String<long double> > transMatrix;
+        String<String<Float> > transMatrix;
 
         double slr_NfromKDE_b0;
         double slr_NfromKDE_b1;
@@ -646,11 +648,11 @@ namespace seqan2 {
         }
 
         // some precision related:
-        options.min_nligf = std::nextafter((long double)1.0, (long double)0.0);
-        if (options.verbosity >= 2) std::cout << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << "Max. nligf: " << options.min_nligf << std::setprecision(6) << std::endl;
+        options.min_nligf = std::nextafter(static_cast<Float>(1.0), static_cast<Float>(0.0));
+        if (options.verbosity >= 2) std::cout << std::setprecision(pureclip::float_digits10() + 1) << "Max. nligf: " << options.min_nligf << std::setprecision(6) << std::endl;
         int db_min_exp = DBL_MIN_10_EXP;
-        int ldb_min_exp = LDBL_MIN_10_EXP;
-        std::cout << "DBL_MIN_10_EXP: " << db_min_exp << " LDBL_MIN_10_EXP: " << ldb_min_exp << std::endl;
+        int ldb_min_exp = pureclip::float_min_10_exp();
+        std::cout << "DBL_MIN_10_EXP: " << db_min_exp << " Float_MIN_10_EXP: " << ldb_min_exp << std::endl;
 
         // some other thresholds and settings:
         options.binSize = options.bandwidth * 2; 
