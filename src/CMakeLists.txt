@@ -2,21 +2,28 @@
 cmake_minimum_required (VERSION 3.5...3.31)
 
 # Generate Release builds by default
-if ( NOT CMAKE_BUILD_TYPE )
-    message ( STATUS "Setting build type to Release" )
-    set ( CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE )
+if (NOT CMAKE_BUILD_TYPE)
+    message (STATUS "Setting build type to Release")
+    set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE)
 else()
-    message ( STATUS "User selected build type: ${CMAKE_BUILD_TYPE}" )
+    message (STATUS "User selected build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
 # Name of project and that it is C++ only.
 project (PureCLIP CXX)
 
+# Require C++17 explicitly — both compilers on supported platforms support it,
+# and it gives consistent behaviour across macOS (AppleClang) and Linux (GCC).
+# SeqAn 2.5 is C++14/17 compatible; we opt into 17 for the whole project.
+set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+set (CMAKE_CXX_EXTENSIONS OFF)
+
 # ----------------------------------------------------------------------------
 # Dependencies
 # ----------------------------------------------------------------------------
 
-LIST ( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ )
+list (APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 
 # ----------------------------------------------------------------------------
 # Apple Clang / arm64 (Apple Silicon) OpenMP support
@@ -64,9 +71,9 @@ if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     endif()
 endif()
 
-find_package ( OpenMP REQUIRED )
-include ( SeqAn )
-include ( Boost )
+find_package (OpenMP REQUIRED)
+include (SeqAn)
+include (Boost)
 find_package (GSL REQUIRED)
 
 # ----------------------------------------------------------------------------
@@ -75,72 +82,87 @@ find_package (GSL REQUIRED)
 
 # SeqAn defaults BGZF I/O to 16 threads; PureCLIP manages its own
 # threading via -nt and requires serial BAM access for correct results.
-add_definitions (-DSEQAN_BGZF_NUM_THREADS=1)
+# This replicates the single change made in the original skrakau/seqan fork.
+set (PURECLIP_COMPILE_DEFS
+    SEQAN_BGZF_NUM_THREADS=1
+    ${SEQAN_DEFINITIONS}
+)
 
-# Add include directories.
-include_directories (SYSTEM ${SEQAN_INCLUDE_DIRS})
-include_directories (SYSTEM ${GSL_INCLUDE_DIRS})
-include_directories (SYSTEM ${Boost_INCLUDE_DIRS})
+# target_compile_options requires a proper cmake list (one flag per element).
+# Both SEQAN_CXX_FLAGS and OpenMP_CXX_FLAGS are space-separated strings so we
+# split them before passing to target_compile_options.
+separate_arguments (SEQAN_CXX_FLAGS_LIST    UNIX_COMMAND "${SEQAN_CXX_FLAGS}")
+separate_arguments (OpenMP_CXX_FLAGS_LIST   UNIX_COMMAND "${OpenMP_CXX_FLAGS}")
+set (PURECLIP_COMPILE_OPTIONS ${SEQAN_CXX_FLAGS_LIST} ${OpenMP_CXX_FLAGS_LIST})
 
-# Add definitions set by find_package (SeqAn).
-add_definitions (${SEQAN_DEFINITIONS})
-
-# Add CXX flags found by find_package (SeqAn).
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+set (PURECLIP_INCLUDE_DIRS
+    ${SEQAN_INCLUDE_DIRS}
+    ${GSL_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
+)
 
 # PureCLIP static build for Linux
 set (LINK_TYPE "-dynamic")
-if ( STATIC_BUILD )
+if (STATIC_BUILD)
     set (LINK_TYPE "-static")
-    if(UNIX AND NOT APPLE)
-        message ( STATUS "Configuring Linux static build" )
-        SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-        SET(CMAKE_EXE_LINKER_FLAGS "-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive")
+    if (UNIX AND NOT APPLE)
+        message (STATUS "Configuring Linux static build")
+        set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+        set (CMAKE_EXE_LINKER_FLAGS "-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive")
     elseif (UNIX AND APPLE)
         set (LINK_TYPE "")
-        message ( STATUS "Configuring Mac build with static libstdc++" )
+        message (STATUS "Configuring Mac build with static libstdc++")
         string (REPLACE "dylib" "a" GSL_LIBRARIES "${GSL_LIBRARIES}")
-        SET(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
-        SET(BUILD_SHARED_LIBRARIES OFF)
+        set (CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+        set (BUILD_SHARED_LIBRARIES OFF)
     endif()
 endif()
 
-# Add executable and link against SeqAn dependencies.
+# Executables
 add_executable (pureclip
-                    pureclip.cpp
-                    util.h
-                    call_sites.h
-                    parse_alignments.h
-                    prepro_mle.h
-                    hmm_1.h
-                    density_functions.h)
+    pureclip.cpp
+    util.h
+    call_sites.h
+    parse_alignments.h
+    prepro_mle.h
+    hmm_1.h
+    density_functions.h)
 
 add_executable (winextract winextract.cpp)
 
-target_link_libraries (pureclip ${Boost_LIBRARIES} ${SEQAN_LIBRARIES} ${GSL_LIBRARIES})
-target_link_libraries (winextract ${Boost_LIBRARIES} ${SEQAN_LIBRARIES} ${GSL_LIBRARIES})
+foreach (_target pureclip winextract)
+    target_include_directories (${_target} SYSTEM PRIVATE ${PURECLIP_INCLUDE_DIRS})
+    target_compile_definitions (${_target} PRIVATE ${PURECLIP_COMPILE_DEFS})
+    target_compile_options     (${_target} PRIVATE ${PURECLIP_COMPILE_OPTIONS})
+    target_link_libraries      (${_target} PRIVATE
+        ${Boost_LIBRARIES}
+        ${SEQAN_LIBRARIES}
+        ${GSL_LIBRARIES})
+endforeach()
 
 # Installation
-if ( PKG_BUILD )
-    SET ( BINDIR "." )
-    SET ( EXTRADIR "." )
+if (PKG_BUILD)
+    set (BINDIR ".")
+    set (EXTRADIR ".")
 else()
-    SET ( BINDIR "bin" )
-    SET ( EXTRADIR "share/pureclip" )
+    set (BINDIR "bin")
+    set (EXTRADIR "share/pureclip")
 endif()
 install (TARGETS pureclip winextract RUNTIME DESTINATION "${BINDIR}")
 install (FILES "../LICENSE.md" DESTINATION "${EXTRADIR}")
 
 # Packaging
-if(UNIX AND NOT APPLE)
-    SET(CPACK_SYSTEM_NAME "linux64${LINK_TYPE}")
+if (UNIX AND NOT APPLE)
+    set (CPACK_SYSTEM_NAME "linux64${LINK_TYPE}")
 elseif (UNIX AND APPLE)
-    SET(CPACK_SYSTEM_NAME "mac64${LINK_TYPE}")
+    set (CPACK_SYSTEM_NAME "mac64${LINK_TYPE}")
 endif()
-SET(CPACK_PACKAGE_VERSION_MAJOR "1")
-SET(CPACK_PACKAGE_VERSION_MINOR "3")
-SET(CPACK_PACKAGE_VERSION_PATCH "1")
-SET(CPACK_GENERATOR "TGZ")
-SET(CPACK_INSTALLED_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../util;util" "${CMAKE_CURRENT_SOURCE_DIR}/../pkg;.")
-message(STATUS "Adding file ${CMAKE_CURRENT_SOURCE_DIR}/../pkg/README")
-include ( CPack )
+set (CPACK_PACKAGE_VERSION_MAJOR "1")
+set (CPACK_PACKAGE_VERSION_MINOR "3")
+set (CPACK_PACKAGE_VERSION_PATCH "1")
+set (CPACK_GENERATOR "TGZ")
+set (CPACK_INSTALLED_DIRECTORIES
+    "${CMAKE_CURRENT_SOURCE_DIR}/../util;util"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../pkg;.")
+message (STATUS "Adding file ${CMAKE_CURRENT_SOURCE_DIR}/../pkg/README")
+include (CPack)
