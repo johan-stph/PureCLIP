@@ -133,6 +133,25 @@ jobs:
       - name: Build
         run: make -C build -j$(nproc)
 
+      - name: Generate tier-1 golden files (Linux)
+        run: |
+          python3 tests/make_synthetic.py
+          mkdir -p tests/golden/synthetic/Linux
+          ./build/pureclip \
+            -i   tests/data/synthetic/sample.bam \
+            -bai tests/data/synthetic/sample.bam.bai \
+            -g   tests/data/synthetic/ref.fa \
+            -o   tests/golden/synthetic/Linux/sites.bed \
+            -or  tests/golden/synthetic/Linux/regions.bed \
+            -p   tests/golden/synthetic/Linux/params.txt \
+            -nt  2
+
+      - name: Upload Linux golden files
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-linux-x86
+          path: tests/golden/synthetic/Linux/
+
       - name: Verify
         run: |
           ./build/pureclip --version
