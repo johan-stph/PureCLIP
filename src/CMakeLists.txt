@@ -13,23 +13,25 @@ endif()
 project (PureCLIP CXX)
 
 # ----- auto-version from git tags --------------------------------------------
-execute_process(
-    COMMAND git describe --tags --match "v*" --dirty
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
-    OUTPUT_VARIABLE GIT_DESCRIBE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-if (GIT_DESCRIBE)
-    string(REGEX REPLACE "^v" "" PURE_CLIP_VERSION "${GIT_DESCRIBE}")
-    string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match "${PURE_CLIP_VERSION}")
-    if (_match)
-        set(CPACK_PACKAGE_VERSION_MAJOR ${CMAKE_MATCH_1})
-        set(CPACK_PACKAGE_VERSION_MINOR ${CMAKE_MATCH_2})
-        set(CPACK_PACKAGE_VERSION_PATCH ${CMAKE_MATCH_3})
+if (NOT PURE_CLIP_VERSION)
+    execute_process(
+        COMMAND git describe --tags --match "v*" --dirty
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+        OUTPUT_VARIABLE GIT_DESCRIBE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if (GIT_DESCRIBE)
+        string(REGEX REPLACE "^v" "" PURE_CLIP_VERSION "${GIT_DESCRIBE}")
+    else()
+        set(PURE_CLIP_VERSION "unknown")
     endif()
-else()
-    set(PURE_CLIP_VERSION "unknown")
+endif()
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" _match "${PURE_CLIP_VERSION}")
+if (_match)
+    set(CPACK_PACKAGE_VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(CPACK_PACKAGE_VERSION_MINOR ${CMAKE_MATCH_2})
+    set(CPACK_PACKAGE_VERSION_PATCH ${CMAKE_MATCH_3})
 endif()
 string(TIMESTAMP PURE_CLIP_BUILD_DATE "%B %Y")
 
