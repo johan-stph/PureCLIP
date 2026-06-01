@@ -1,0 +1,70 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # macOS · Apple Silicon (arm64)
+  # Runner: macos-15 (M-series, arm64)
+  # cmake 4.x is pre-installed; libomp from Homebrew patches Apple Clang OpenMP
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-macos-arm64:
+    name: macOS · Apple Silicon (arm64)
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install gsl libomp boost
+
+      - name: Configure
+        run: |
+          mkdir build && cd build
+          cmake ../src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix boost)" \
+            -DGSL_ROOT_DIR="$(brew --prefix gsl)"
+
+      - name: Build
+        run: make -C build -j$(sysctl -n hw.logicalcpu)
+
+      - name: Verify
+        run: |
+          ./build/pureclip --version
+          ./build/winextract --version
+          file build/pureclip | grep -q arm64 && echo "✓ native arm64 binary"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Linux · arm64
+  # Runner: ubuntu-24.04-arm (available on GitHub Pro and above)
+  # GCC supports OpenMP natively — no libomp workaround needed
+  # cmake 3.31 pre-installed — no cmake 4.x compat issues
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-linux-arm64:
+    name: Linux · arm64
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y cmake g++ libgsl-dev libboost-dev zlib1g-dev libbz2-dev
+
+      - name: Configure
+        run: |
+          mkdir build && cd build
+          cmake ../src -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: make -C build -j$(nproc)
+
+      - name: Verify
+        run: |
+          ./build/pureclip --version
+          ./build/winextract --version
+          file build/pureclip | grep -q aarch64 && echo "✓ native aarch64 binary"
