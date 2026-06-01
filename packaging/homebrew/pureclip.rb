@@ -19,11 +19,11 @@ class Pureclip2 < Formula
         *std_cmake_args
       system "make", "-j#{ENV.make_jobs}"
     end
-    bin.install "build/pureclip"
-    bin.install "build/winextract"
+    bin.install "build/pureclip" => "pureclip2"
+    bin.install "build/winextract" => "winextract2"
   end
 
   test do
-    system "#{bin}/pureclip", "--version"
+    system "#{bin}/pureclip2", "--version"
   end
 end
