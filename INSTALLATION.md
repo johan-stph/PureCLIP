@@ -1,119 +1,82 @@
 # Installing PureCLIP
 
-This guide covers installing PureCLIP from source on **Linux** and **macOS**
-(including Apple Silicon / arm64), as well as via Bioconda.
+This guide covers all installation methods: pre-built binaries, build from
+source, and package managers (coming soon).
 
 ---
 
 ## Table of Contents
 
-- [Bioconda (easiest)](#bioconda-easiest)
-- [Linux – build from source](#linux--build-from-source)
-- [macOS – build from source](#macos--build-from-source)
-  - [Intel (x86\_64)](#intel-x86_64)
-  - [Apple Silicon (arm64)](#apple-silicon-arm64)
+- [Pre-built release binaries](#pre-built-release-binaries)
+- [Build from source](#build-from-source)
+  - [macOS (Intel + Apple Silicon)](#macos-intel--apple-silicon)
+  - [Linux](#linux)
 - [Verify the build](#verify-the-build)
 - [Quick sample run](#quick-sample-run)
+- [Coming soon](#coming-soon)
 
 ---
 
-## Bioconda (easiest)
+## Pre-built release binaries
+
+Pre-built binaries for **macOS arm64**, **Linux x86\_64** and **Linux arm64** are
+available on the [Releases](https://github.com/johan-stph/PureCLIP/releases/latest) page.
 
 ```bash
-conda install -c bioconda pureclip
+# Download the archive for your platform
+tar -xzf pureclip-<version>-<platform>.tar.gz
+./pureclip --version
 ```
 
-> Requires an active [Bioconda channel](https://bioconda.github.io).
-> Pre-built bottles are available for Linux (x86\_64) and macOS (x86\_64).
-> For Apple Silicon use the native build from source described below.
-
 ---
 
-## Linux – build from source
+## Build from source
 
-### Prerequisites
-
-| Tool | Version | Install |
-|------|---------|---------|
-| CMake | ≥ 3.0 | `apt install cmake` / `dnf install cmake` |
-| GCC | ≥ 5 (C++14) | `apt install g++` |
-| GSL | any | `apt install libgsl-dev` |
-| zlib | any | `apt install zlib1g-dev` |
-
-SeqAn 2.2.0 and Boost 1.64.0 are **downloaded automatically** by CMake on
-first configure.
-
-### Build
+### macOS (Intel + Apple Silicon)
 
 ```bash
-git clone https://github.com/skrakau/PureCLIP.git
+# Prerequisites
+brew install cmake gsl libomp
+
+# Build
+git clone https://github.com/johan-stph/PureCLIP.git
+cd PureCLIP
+mkdir build && cd build
+cmake ../src -DCMAKE_BUILD_TYPE=Release
+make -j$(sysctl -n hw.logicalcpu)
+```
+
+| Package | Purpose |
+|---------|---------|
+| `cmake`  | Build system |
+| `gsl`    | GNU Scientific Library |
+| `libomp` | OpenMP runtime for Apple Clang |
+
+> **Apple Silicon:** The build system detects Apple Clang automatically, calls
+> `brew --prefix libomp`, and sets `-Xpreprocessor -fopenmp` +
+> correct include/library paths. No extra flags needed.
+
+### Linux
+
+```bash
+# Prerequisites (Debian/Ubuntu)
+sudo apt install cmake g++ libgsl-dev zlib1g-dev
+
+# Build
+git clone https://github.com/johan-stph/PureCLIP.git
 cd PureCLIP
 mkdir build && cd build
 cmake ../src -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
 
-Binaries are written to `build/pureclip` and `build/winextract`.
+SeqAn and Boost are **downloaded automatically** by CMake on first configure.
+
 Optionally install system-wide:
 
 ```bash
 sudo make install   # installs to /usr/local/bin by default
 ```
-
----
-
-## macOS – build from source
-
-### Prerequisites (all architectures)
-
-Install [Homebrew](https://brew.sh) if you do not have it, then:
-
-```bash
-brew install cmake gsl libomp
-```
-
-| Package | Purpose |
-|---------|---------|
-| `cmake` | Build system |
-| `gsl` | GNU Scientific Library |
-| `libomp` | OpenMP runtime for Apple Clang (both Intel and arm64) |
-
-### Intel (x86\_64)
-
-```bash
-git clone https://github.com/skrakau/PureCLIP.git
-cd PureCLIP
-mkdir build && cd build
-cmake ../src -DCMAKE_BUILD_TYPE=Release
-make -j$(sysctl -n hw.logicalcpu)
-```
-
-### Apple Silicon (arm64)
-
-Apple's bundled `clang` does not ship with an OpenMP runtime.
-The CMakeLists.txt in this repo detects Apple Clang automatically and picks up
-`libomp` from Homebrew — **no extra flags are needed**.
-
-```bash
-git clone https://github.com/skrakau/PureCLIP.git
-cd PureCLIP
-mkdir build && cd build
-cmake ../src -DCMAKE_BUILD_TYPE=Release
-make -j$(sysctl -n hw.logicalcpu)
-```
-
-> **What happens under the hood:**  CMake detects `Apple Clang`, calls
-> `brew --prefix libomp`, and sets `-Xpreprocessor -fopenmp` together with the
-> correct include / library paths automatically.
-> If `libomp` is not found cmake will abort with a clear install instruction.
-
-#### Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| `brew: command not found` during cmake | Install Homebrew or set `LIBOMP_PREFIX` manually: `cmake ../src -DOpenMP_omp_LIBRARY=/path/to/libomp.dylib` |
-| `ld: library 'omp' not found` | Run `brew install libomp` and re-run cmake |
-| SeqAn / Boost download fails | Check internet access; or pass `-DSEQAN_ROOT=` / `-DBOOST_ROOT=` pointing to local copies |
 
 ---
 
@@ -162,3 +125,14 @@ Output files:
 - `PureCLIP.crosslink_clusters.bed` — merged binding regions (generated automatically)
 
 For more options see the [full documentation](http://pureclip.readthedocs.io/en/latest/).
+
+---
+
+## Coming soon
+
+| Method | Install command | Status |
+|--------|----------------|--------|
+| **Homebrew** | `brew install pureclip2` | 🚧 tap ready, formula in review |
+| **Bioconda** | `conda install -c bioconda pureclip2` | 🚧 recipe scaffolded, submission pending |
+
+Both will auto-resolve dependencies and keep PureCLIP up to date with each release.
