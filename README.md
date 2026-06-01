@@ -1,23 +1,21 @@
-[![Build Status](https://travis-ci.org/skrakau/PureCLIP.svg?branch=master)](https://travis-ci.org/skrakau/PureCLIP) [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/pureclip/README.html) [![GitHub release](https://img.shields.io/github/release/skrakau/PureCLIP.svg)](https://github.com/skrakau/PureCLIP/releases/latest)
+[![Build](https://github.com/johan-stph/PureCLIP/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/johan-stph/PureCLIP/actions/workflows/build.yml) [![GitHub release](https://img.shields.io/github/release/johan-stph/PureCLIP.svg)](https://github.com/johan-stph/PureCLIP/releases/latest)
 
 PureCLIP is a tool to detect protein-RNA interaction footprints from single-nucleotide CLIP-seq data, such as iCLIP and eCLIP.
 
 # Installation
 
-You can install PureCLIP from Bioconda, from the release tarballs and from source.
+You can install PureCLIP from the release tarballs or from source.
 
-## Bioconda 
+## Release Binaries
 
-Using Conda with an activated [Bioconda](http://bioconda.github.io) channel is the easiest way to install PureCLIP:
+Pre-built binaries for **macOS arm64**, **Linux x86\_64** and **Linux arm64** are available on the [Releases](https://github.com/johan-stph/PureCLIP/releases/latest) page.
+Download the archive for your platform and extract it:
 
-    $ conda install pureclip
+    $ tar -xzf pureclip-<version>-<platform>.tar.gz
+    $ ./pureclip --version
 
-> **Apple Silicon (arm64):** Bioconda bottles are built for x86\_64. For a native
-> arm64 binary build from source — see [INSTALLATION.md](INSTALLATION.md).
-
-## Release Tarballs
-
-Alternatively, you can get the source code and binaries for macOS and Linux [here](https://github.com/skrakau/PureCLIP/releases/latest).
+> **TODO:** publish packages to [Bioconda](http://bioconda.github.io) and [Homebrew](https://brew.sh) so that PureCLIP can be installed via
+> `conda install pureclip` / `brew install pureclip`.
 
 # Galaxy: use PureCLIP online
 
@@ -28,11 +26,11 @@ Thanks to the Freiburg Galaxy Team!
 # Installation
 
 For full installation instructions — including **Apple Silicon (arm64)** native
-builds, Linux, and Bioconda — see **[INSTALLATION.md](INSTALLATION.md)**.
+builds and Linux — see **[INSTALLATION.md](INSTALLATION.md)**.
 
 ### Quick start (Linux / macOS)
 
-    $ git clone https://github.com/skrakau/PureCLIP.git
+    $ git clone https://github.com/johan-stph/PureCLIP.git
     $ cd PureCLIP
     $ mkdir build && cd build
     $ cmake ../src -DCMAKE_BUILD_TYPE=Release
