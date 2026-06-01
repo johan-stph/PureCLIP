@@ -539,7 +539,7 @@ bool HMM<TGAMMA, TBIN>::iForward(String<String<long double> > &alphas_1, unsigne
             long double f4 = alphas_1[t-1][3] + logA[3][k] + this->eProbs[s][i][t][k];
 
             alphas_1[t][k] = get_logSumExp_states(f1, f2, f3, f4, options.lookUp);
-
+#ifndef NDEBUG
             if (std::isinf(alphas_1[t][k]))
             {
                 std::cout << "ERROR: alphas_1[" << t << "][" << k << "] is " << alphas_1[t][k] << std::endl;
@@ -550,6 +550,7 @@ bool HMM<TGAMMA, TBIN>::iForward(String<String<long double> > &alphas_1, unsigne
                 std::cout << "       alphas_1[t-1][3] " << alphas_1[t-1][3] << " logA[3][k] " << logA[3][k] << " this->eProbs[s][i][t][k] " << this->eProbs[s][i][t][k] << std::endl;
                 return false;
             }
+#endif
         }
     }
     return true;
@@ -577,12 +578,13 @@ bool HMM<TGAMMA, TBIN>::iBackward(String<String<long double> > &betas_1, unsigne
             long double f4 = betas_1[t+1][3] + logA[k][3] + this->eProbs[s][i][t+1][3];
 
             betas_1[t][k] = get_logSumExp_states(f1, f2, f3, f4, options.lookUp);
-
+#ifndef NDEBUG
             if (std::isinf(betas_1[t][k]))
             {
                 std::cout << "ERROR: betas_1[" << t << "][" << k << "] is " << betas_1[t][k] << std::endl;
                 return false;
             }
+#endif
         }
     }
     return true;
@@ -615,31 +617,69 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
     for (unsigned s = 0; s < 2; ++s)
     {
         bool stop = false;
-#if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1))
-#endif
+        // Pre-scan: find largest interval for buffer pre-allocation
+        unsigned maxT = 0;
         for (unsigned i = 0; i < length(this->setObs[s]); ++i)
+            if (setObs[s][i].length() > maxT)
+                maxT = setObs[s][i].length();
+
+#if HMM_PARALLEL
+        SEQAN_OMP_PRAGMA(parallel)
+        {
+            // ── Thread-local pre-allocated buffers ──
+            String<String<long double> > alphas_1;
+            resize(alphas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(alphas_1[t], this->K, Exact());
+
+            String<String<long double> > betas_1;
+            resize(betas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(betas_1[t], this->K, Exact());
+
+            // Pre-allocate transition accumulators
+            String<String<long double> > xis;
+            resize(xis, this->K, Exact());
+            String<String<long double> > p_i;
+            resize(p_i, this->K, Exact());
+            for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
+            {
+                resize(xis[k_1], this->K, Exact());
+                resize(p_i[k_1], this->K, Exact());
+            }
+
+            SEQAN_OMP_PRAGMA(for schedule(dynamic, 1))
+            for (unsigned i = 0; i < length(this->setObs[s]); ++i)
+#else
+            String<String<long double> > alphas_1;
+            resize(alphas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(alphas_1[t], this->K, Exact());
+            String<String<long double> > betas_1;
+            resize(betas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(betas_1[t], this->K, Exact());
+            String<String<long double> > xis;
+            resize(xis, this->K, Exact());
+            String<String<long double> > p_i;
+            resize(p_i, this->K, Exact());
+            for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
+            {
+                resize(xis[k_1], this->K, Exact());
+                resize(p_i[k_1], this->K, Exact());
+            }
+            for (unsigned i = 0; i < length(this->setObs[s]); ++i)
+#endif
         {
             unsigned T = setObs[s][i].length();
-            // forward probabilities
-            String<String<long double> > alphas_1;
-            resize(alphas_1, T, Exact());
-            for (unsigned t = 0; t < T; ++t)
-            {
-                resize(alphas_1[t], this->K, Exact());
-            }
+            // forward probabilities (uses pre-allocated alphas_1, writes rows 0..T-1)
             if (!iForward(alphas_1, s, i, logA, options))
             {
                 stop = true;
                 continue;
             }
 
-            // backward probabilities
-            String<String<long double> > betas_1;
-            resize(betas_1, T, Exact());
-            for (unsigned t = 0; t < T; ++t)
-                resize(betas_1[t], this->K, Exact());
-
+            // backward probabilities (uses pre-allocated betas_1, writes rows 0..T-1)
             if (!iBackward(betas_1, s, i, logA, options))
             {
                 stop = true;
@@ -647,7 +687,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
             }
 
             // compute state posterior probabilities
-            for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)
+            for (unsigned t = 0; t < T; ++t)
             {
                 long double f1 = alphas_1[t][0] + betas_1[t][0];
                 long double f2 = alphas_1[t][1] + betas_1[t][1];
@@ -659,7 +699,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
                 for (unsigned k = 0; k < this->K; ++k)
                 {
                     this->statePosteriors[s][k][i][t] = myExp(alphas_1[t][k] + betas_1[t][k] - norm);     // store not in log-space!
-
+#ifndef NDEBUG
                     if (std::isnan(this->statePosteriors[s][k][i][t]) || std::isinf(this->statePosteriors[s][k][i][t]) ||
                         this->statePosteriors[s][k][i][t] < 0.0 || this->statePosteriors[s][k][i][t] > 1.0)
                     {
@@ -669,6 +709,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
                         stop = true;
                         continue;
                     }
+#endif
                 }
             }
 
@@ -677,19 +718,17 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
                 this->initProbs[s][i][k] = this->statePosteriors[s][k][i][0];
 
             // compute xi values for interval in preparation for new trans. probs
-            String<String<long double> > xis;
-            resize(xis, this->K, Exact());
-            String<String<long double> > p_i;
-            resize(p_i, this->K, Exact());
+            // Zero-out pre-allocated accumulators
             for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
-            {
-                resize(xis[k_1], this->K, 0.0, Exact());
-                resize(p_i[k_1], this->K, 0.0, Exact());
-            }
+                for (unsigned k_2 = 0; k_2 < this->K; ++k_2)
+                {
+                    xis[k_1][k_2] = 0.0;
+                    p_i[k_1][k_2] = 0.0;
+                }
             long double p_2_2_i = 0.0;
             long double p_2_3_i = 0.0;
             //
-            for (unsigned t = 1; t < this->setObs[s][i].length(); ++t)
+            for (unsigned t = 1; t < T; ++t)
             {
                 long double norm = std::numeric_limits<long double>::quiet_NaN();
                 for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
@@ -722,6 +761,9 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
             SEQAN_OMP_PRAGMA(critical)
                 p_2_3 += p_2_3_i;
         }
+#if HMM_PARALLEL
+        }  // end omp parallel
+#endif
         if (stop) return false;
     }
 
@@ -771,38 +813,52 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
     for (unsigned s = 0; s < 2; ++s)
     {
         bool stop = false;
+        // Pre-scan: find largest interval for buffer pre-allocation
+        unsigned maxT = 0;
+        for (unsigned ii = 0; ii < length(this->setObs[s]); ++ii)
+            if (setObs[s][ii].length() > maxT)
+                maxT = setObs[s][ii].length();
+
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1))
+        SEQAN_OMP_PRAGMA(parallel)
+        {
+            String<String<long double> > alphas_1;
+            resize(alphas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(alphas_1[t], this->K, Exact());
+            String<String<long double> > betas_1;
+            resize(betas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(betas_1[t], this->K, Exact());
+
+            SEQAN_OMP_PRAGMA(for schedule(dynamic, 1))
+            for (unsigned i = 0; i < length(this->setObs[s]); ++i)
+#else
+        {
+            String<String<long double> > alphas_1;
+            resize(alphas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(alphas_1[t], this->K, Exact());
+            String<String<long double> > betas_1;
+            resize(betas_1, maxT, Exact());
+            for (unsigned t = 0; t < maxT; ++t)
+                resize(betas_1[t], this->K, Exact());
+            for (unsigned i = 0; i < length(this->setObs[s]); ++i)
 #endif
-        for (unsigned i = 0; i < length(this->setObs[s]); ++i)
         {
             unsigned T = setObs[s][i].length();
-            // forward probabilities
-            String<String<long double> > alphas_1;
-            resize(alphas_1, T, Exact());
-            for (unsigned t = 0; t < T; ++t)
-            {
-                resize(alphas_1[t], this->K, Exact());
-            }
             if (!iForward(alphas_1, s, i, logA, options))
             {
                 stop = true;
                 continue;
             }
-
-            // backward probabilities
-            String<String<long double> > betas_1;
-            resize(betas_1, T, Exact());
-            for (unsigned t = 0; t < T; ++t)
-                resize(betas_1[t], this->K, Exact());
             if (!iBackward(betas_1, s, i, logA, options))
             {
                 stop = true;
                 continue;
             }
 
-            // compute state posterior probabilities (in log-space)
-            for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)
+            for (unsigned t = 0; t < T; ++t)
             {
                 long double f1 = alphas_1[t][0] + betas_1[t][0];
                 long double f2 = alphas_1[t][1] + betas_1[t][1];
@@ -813,16 +869,19 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
 
                 for (unsigned k = 0; k < this->K; ++k)
                 {
-                    this->statePosteriors[s][k][i][t] = myExp(alphas_1[t][k] + betas_1[t][k] - norm);     // store not in log-space!
+                    this->statePosteriors[s][k][i][t] = myExp(alphas_1[t][k] + betas_1[t][k] - norm);
+#ifndef NDEBUG
                     if (std::isnan(this->statePosteriors[s][k][i][t])) std::cout << "ERROR: statePosterior is nan! " << std::endl;
+#endif
                 }
             }
 
-            // update init probs
             for (unsigned k = 0; k < this->K; ++k)
                 this->initProbs[s][i][k] = this->statePosteriors[s][k][i][0];
-
         }
+#if HMM_PARALLEL
+        }  // end omp parallel
+#endif
         if (stop) return false;
     }
     return true;
