@@ -1,15 +1,16 @@
 # Installing PureCLIP
 
-This guide covers all installation methods: pre-built binaries, build from
-source, and package managers (coming soon).
+This guide covers all installation methods: pre-built binaries, Homebrew,
+and building from source.
 
 ---
 
 ## Table of Contents
 
 - [Pre-built release binaries](#pre-built-release-binaries)
+- [Homebrew (macOS)](#homebrew-macos)
 - [Build from source](#build-from-source)
-  - [macOS (Intel + Apple Silicon)](#macos-intel--apple-silicon)
+  - [macOS (Apple Silicon)](#macos-apple-silicon)
   - [Linux](#linux)
 - [Verify the build](#verify-the-build)
 - [Quick sample run](#quick-sample-run)
@@ -30,9 +31,20 @@ tar -xzf pureclip-<version>-<platform>.tar.gz
 
 ---
 
+## Homebrew (macOS)
+
+```bash
+brew tap johan-stph/tap
+brew install pureclip2
+```
+
+Installs `pureclip2` and `winextract` with all dependencies resolved automatically.
+
+---
+
 ## Build from source
 
-### macOS (Intel + Apple Silicon)
+### macOS (Apple Silicon)
 
 ```bash
 # Prerequisites
@@ -52,9 +64,13 @@ make -j$(sysctl -n hw.logicalcpu)
 | `gsl`    | GNU Scientific Library |
 | `libomp` | OpenMP runtime for Apple Clang |
 
-> **Apple Silicon:** The build system detects Apple Clang automatically, calls
+> The build system detects Apple Clang automatically, calls
 > `brew --prefix libomp`, and sets `-Xpreprocessor -fopenmp` +
 > correct include/library paths. No extra flags needed.
+>
+> **Intel macOS** is not actively tested or packaged. The source may still
+> compile (follow the same steps above), but pre-built binaries and
+> Homebrew bottles are not provided for x86\_64 macOS.
 
 ### Linux
 
@@ -132,7 +148,6 @@ For more options see the [full documentation](http://pureclip.readthedocs.io/en/
 
 | Method | Install command | Status |
 |--------|----------------|--------|
-| **Homebrew** | `brew install pureclip2` | 🚧 tap ready, formula in review |
 | **Bioconda** | `conda install -c bioconda pureclip2` | 🚧 recipe scaffolded, submission pending |
 
-Both will auto-resolve dependencies and keep PureCLIP up to date with each release.
+Auto-resolved dependencies and updates with each release.
