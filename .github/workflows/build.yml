@@ -19,7 +19,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install dependencies
         run: brew install ccache gsl libomp boost samtools
@@ -71,7 +71,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install dependencies
         run: brew install ccache gsl libomp boost
@@ -109,7 +109,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install dependencies
         run: |
@@ -163,7 +163,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install dependencies
         run: |
