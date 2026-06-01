@@ -90,8 +90,8 @@ public:
     // Copy constructor 
 //     HMM<TGAMMA, TBIN>(const HMM<TGAMMA, TBIN> &hmm2) {x = p2.x; y = p2.y; } 
 
-    HMM<TGAMMA, TBIN>();
-    ~HMM<TGAMMA, TBIN>();
+    HMM();
+    ~HMM();
     
     bool computeEmissionProbs(ModelParams<TGAMMA, TBIN> &modelParams, bool learning, AppOptions &options);
     bool iForward(String<String<long double> > &alphas_1, unsigned s, unsigned i, String<String<long double> > &logA, AppOptions &options);    
@@ -113,7 +113,7 @@ public:
 
 
 template<typename TGAMMA, typename TBIN>
-HMM<TGAMMA, TBIN>::~HMM<TGAMMA, TBIN>()
+HMM<TGAMMA, TBIN>::~HMM()
 {
     clear(this->eProbs);
     clear(this->statePosteriors);
