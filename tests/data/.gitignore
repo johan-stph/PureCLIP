@@ -1,0 +1,7 @@
+# Generated test data – not committed
+*.bam
+*.bai
+*.sam
+*.fa
+*.fa.fai
+*.fasta

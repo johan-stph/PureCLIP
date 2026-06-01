@@ -210,3 +210,12 @@ set (CPACK_INSTALLED_DIRECTORIES
     "${CMAKE_CURRENT_SOURCE_DIR}/../pkg;.")
 message (STATUS "Adding file ${CMAKE_CURRENT_SOURCE_DIR}/../pkg/README")
 include (CPack)
+
+# ----------------------------------------------------------------------------
+# Tests
+# ----------------------------------------------------------------------------
+enable_testing ()
+add_subdirectory (
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tests"
+    "${CMAKE_BINARY_DIR}/tests"
+)
