@@ -1,114 +1,193 @@
 # PureCLIP Regression Test Suite
 
+30 tests across 3 tiers. Tier-1 + tier-2 run in CI on every push/PR.
+Tier-3 is offline-only (needs external sample data).
+
 ## Overview
 
-| Tier | Data | Tests | Typical time | RAM | CI |
-|------|------|-------|-------------|-----|----|
-| 1 | Synthetic (10 kb, ~880 reads) | 15 | ~1–4 s total | < 256 MB | ✅ |
-| 2 | Real chrM (16 kb, ~97 k reads) | 7 | ~12 s total | < 512 MB | ✅ |
-| 3 | Real chr21 (48 Mb, ~77 k reads) | 6 | ~50 s total | < 1 GB | ❌ offline only |
+| Tier | Data | Tests | Wall time | RAM | CI |
+|------|------|-------|-----------|-----|----|
+| 1 | Synthetic 10 kb, 860 reads | 15 | ~4 s | < 256 MB | ✅ macOS + Linux |
+| 2 | Real chrM 16 kb, 97k reads (committed, 3 MB) | 7 | ~12 s | < 512 MB | ✅ macOS + Linux |
+| 3 | Real chr21 48 Mb, 77k reads (offline, 49 MB ref) | 6 | ~50 s | < 1 GB | ❌ manual only |
 
-Tier-2 data is committed (~3 MB). Tier-3 needs external sample data
-(49 MB chr21 reference — not committed).
+---
 
-## Quick Start
+## Quick start — CI-level tests (no setup)
 
 ```bash
-# 1. Build
 cd PureCLIP-workspace2
-mkdir build && cd build
-cmake ../src
+mkdir -p build && cd build
+cmake ../src -DCMAKE_BUILD_TYPE=Release
 make -j$(sysctl -n hw.logicalcpu)
-
-# 2. Run CI-level tests (tier-1 + tier-2, no data prep needed)
-ctest -L "tier1|tier2" --output-on-failure
-
-# 3. (Optional) Enable tier-3: extract chr21 from sample data once
-cd ..
-./tests/prepare_full.sh ../sample_run    # needs 49 MB chr21 reference
-./tests/generate_golden.sh build/pureclip   # regenerate all golden files
-
-# 4. Re-configure so CMake sees tier-3, then test
-cd build && cmake ../src
-ctest -L tier3 --output-on-failure
+ctest -L "tier1|tier2" --output-on-failure -j4
 ```
 
-## Golden Files
+Expect: `100% tests passed, 0 tests failed out of 22` in ~12 seconds.
+
+---
+
+## Enabling tier-3 (one-time setup)
+
+```bash
+# Extract chr21 from your sample data (49 MB reference, 77k reads)
+cd PureCLIP-workspace2
+./tests/prepare_full.sh ../sample_run
+
+# (Re)generate all golden files from the reference binary
+./tests/generate_golden.sh build/pureclip
+
+# Re-configure to pick up the new data
+cd build && cmake ../src
+# → Tier 3 tests ENABLED (chr21 data found)
+```
+
+---
+
+## Developer workflow — real examples
+
+### After every build: smoke test
+```bash
+ctest -L tier1 -j4 --output-on-failure
+# 100% tests passed, 0 tests failed out of 15   ← ~4 s
+```
+
+### Before pushing a PR: full CI suite
+```bash
+ctest -L "tier1|tier2" -j4 --output-on-failure
+# 100% tests passed, 0 tests failed out of 22   ← ~12 s
+```
+
+### Before merging: complete pre-merge validation
+```bash
+ctest -L "tier1|tier2|tier3" -j4 --output-on-failure
+# 100% tests passed, 0 tests failed out of 28   ← ~50 s
+```
+
+### Fast regressions only (skip smoke/mode tests)
+```bash
+ctest -L regression -j4 --output-on-failure
+# 100% tests passed, 0 tests failed out of 9    ← ~50 s
+# Instantly catches any output-drifting change.
+```
+
+### Run a single failing test with full output
+```bash
+ctest -R t1_2_regression_sites --output-on-failure
+# FAIL  bed  actual=12 lines  expected=12 lines
+#      line 3 actual:   chrSyn  1498  1499  3  90.9891  ...
+#      line 3 expected: chrSyn  1498  1499  3  90.8621  ...
+```
+
+### Thread determinism check
+```bash
+ctest -L determinism --output-on-failure
+# 100% tests passed, 0 tests failed out of 1    ← ~1 s
+# Confirms -nt 4 produces bit-identical BED as -nt 1.
+```
+
+---
+
+## What happens when a test fails
+
+All regression tests do **exact BED comparison** (lines sorted by chr:start).
+Even a 0.1% shift in crosslink scores gets caught:
+
+```
+FAIL bed  actual=12 lines  expected=12 lines
+     line 3 actual:   chrSyn  1498  1499  3  90.9891  +   [score_CL=250.972;score_E=90.9891;score_B=341.961;score_UC=90.9891]
+     line 3 expected: chrSyn  1498  1499  3  90.8621  +   [score_CL=251.062;score_E=90.8621;score_B=341.924;score_UC=90.8621]
+```
+
+Parameter regression uses float tolerance (`tol=1e-4` by default):
+
+```
+FAIL params  3 value(s) differ (tol=0.0001):
+  gamma2.b0: actual=-1.86378  expected=-1.87234  rel=4.57e-03
+  gamma2.mean: actual=0.155085  expected=0.153764  rel=8.59e-03
+  gamma2.k: actual=2.04298  expected=1.99532  rel=2.39e-02
+```
+
+---
+
+## Golden files
 
 Golden files live in `tests/golden/` and are committed to the repo.
 They are the ground-truth outputs produced by the **reference binary**
 (before any optimisation).
 
-Generate or re-generate them with:
+**Regenerate after intentional output changes:**
 ```bash
 ./tests/generate_golden.sh build/pureclip
 git add tests/golden/
 git commit -m "chore: update golden outputs"
 ```
 
-**Missing golden files cause tests to SKIP (not FAIL).** This lets you run
-smoke and mode tests on a fresh checkout without needing to regenerate.
+**Missing golden files cause tests to SKIP (exit 77), not FAIL.**
 
-## Test List
+---
 
-### Tier 1 – Synthetic
+## Test list
 
-| Test | What it checks |
-|------|----------------|
-| `t1_0_make_data` | Generates `data/synthetic/` (setup) |
-| `t1_1_smoke` | Basic run exits 0 and produces non-empty output |
-| `t1_1_smoke_check` | sites.bed has ≥ 1 line |
-| `t1_2_reg_run` | Regression run (reused by t1_2/3/4) |
-| `t1_2_regression_sites` | sites.bed **exact** match vs golden (sorted) |
-| `t1_3_regression_regions` | regions.bed **exact** match vs golden |
-| `t1_4_regression_params` | params.txt float values within `tol=1e-4` |
-| `t1_5_st1/2/3` | Scoring type variants exit 0 |
-| `t1_6_bc1` | Binding-characteristics mode 1 exits 0 |
-| `t1_7_outputall` | `-oa` flag exits 0 and produces ≥ 1 site |
-| `t1_8_nt4` + `t1_8_thread_determinism` | 4-thread run matches golden sites.bed |
+### Tier 1 — Synthetic (15 tests, ~4 s)
 
-### Tier 2 – Real chrM
+| # | Name | Assertion |
+|----|------|-----------|
+| — | `t1_0_make_data` | Generate synthetic BAM/FASTA (setup) |
+| — | `t1_1_smoke` + `_check` | Exits 0, sites.bed ≥ 1 line |
+| ⚡ | `t1_2_regression_sites` | sites.bed **exact match** vs golden |
+| ⚡ | `t1_3_regression_regions` | regions.bed **exact match** vs golden |
+| ⚡ | `t1_4_regression_params` | params.txt float match within `1e-4` |
+| — | `t1_5_st1` / `st2` / `st3` | Scoring type 1/2/3 exits 0 |
+| — | `t1_6_bc1` | Binding characteristics mode 1 exits 0 |
+| — | `t1_7_outputall` + `_check` | `-oa` flag, sites ≥ 1 |
+| 🔀 | `t1_8_nt4` + `_thread_determinism` | `-nt 4` BED ≡ `-nt 1` golden |
 
-| Test | What it checks |
-|------|----------------|
-| `t2_1_smoke_chrM` | Basic run on real data exits 0 |
-| `t2_2_reg_run` | Regression run (reused by t2_2/3/4) |
-| `t2_2_regression_chrM_sites` | sites.bed **exact** match vs golden |
-| `t2_3_regression_chrM_regions` | regions.bed **exact** match vs golden |
-| `t2_4_regression_chrM_params` | params float values within `tol=1e-4` |
-| `t2_5_chrM_bc1` | bc=1 mode on real data exits 0 |
+⚡ = regression  🔀 = determinism
 
-### Tier 3 – Real chr21 (offline)
+### Tier 2 — Real chrM (7 tests, ~12 s, committed data)
 
-| Test | What it checks |
-|------|----------------|
-| `t3_1_smoke_chr21` | Basic run on 48 Mb nuclear chromosome exits 0 |
-| `t3_2_reg_run` | Regression run (reused by t3_2/3/4) |
-| `t3_2_regression_chr21_sites` | sites.bed **exact** match vs golden |
-| `t3_3_regression_chr21_regions` | regions.bed **exact** match vs golden |
-| `t3_4_regression_chr21_params` | params float values within `tol=1e-4` |
+| # | Name | Assertion |
+|----|------|-----------|
+| — | `t2_1_smoke_chrM` + `_check` | Real data, exits 0, sites ≥ 1 |
+| ⚡ | `t2_2_regression_chrM_sites` | sites.bed **exact match** vs golden |
+| ⚡ | `t2_3_regression_chrM_regions` | regions.bed **exact match** vs golden |
+| ⚡ | `t2_4_regression_chrM_params` | params.txt float match within `1e-4` |
+| — | `t2_5_chrM_bc1` | bc=1 mode on real data exits 0 |
 
-## Useful CTest Invocations
+### Tier 3 — Real chr21 (6 tests, ~50 s, needs `prepare_full.sh`)
+
+| # | Name | Assertion |
+|----|------|-----------|
+| — | `t3_1_smoke_chr21` + `_check` | 48 Mb chromosome, exits 0, sites ≥ 1 |
+| ⚡ | `t3_2_regression_chr21_sites` | sites.bed **exact match** vs golden |
+| ⚡ | `t3_3_regression_chr21_regions` | regions.bed **exact match** vs golden |
+| ⚡ | `t3_4_regression_chr21_params` | params.txt float match within `1e-4` |
+
+---
+
+## All CTest invocations
 
 ```bash
-ctest -L tier1                            # fast checks only
-ctest -L "tier1|tier2"                    # CI suite
-ctest -L "tier1|tier2|tier3"              # full pre-merge validation
-ctest -L regression                       # only golden comparisons
+ctest -N                                  # dry-run: list all 30 tests
+ctest -L tier1                            # fast sanity check (~4 s)
+ctest -L "tier1|tier2"                    # CI suite (~12 s)
+ctest -L "tier1|tier2|tier3"              # full pre-merge validation (~50 s)
+ctest -L regression                       # golden-comparison only
 ctest -L determinism                      # thread consistency
-ctest -N                                  # dry-run: list all tests
-ctest --output-on-failure -j4             # parallel, show failures
-ctest -R t1_2                             # run tests matching regex
+ctest -R t1_2_regression_sites            # single failing test
+ctest --output-on-failure -j4             # parallel, show diffs on fail
+ctest --repeat until-fail:3               # flake catcher
 ```
 
-## compare.py
+---
 
-The comparison utility is standalone and can be called directly:
+## compare.py (standalone)
 
 ```bash
-python3 tests/compare.py bed    actual.bed    golden/synthetic/sites.bed
-python3 tests/compare.py params actual.params golden/synthetic/params.txt --tol 1e-4
+python3 tests/compare.py bed    actual.bed    golden/sites.bed
+python3 tests/compare.py params actual.params golden/params.txt --tol 1e-4
 python3 tests/compare.py count  actual.bed    10
 ```
 
-Exit codes: `0` = pass, `1` = fail, `77` = skip (golden missing).
+Exit codes: `0` = pass, `1` = fail, `77` = skip (golden missing → CTest `SKIP_RETURN_CODE`).
