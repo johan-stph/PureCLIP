@@ -38,13 +38,13 @@
 #include <seqan/modifier.h>
 #include <seqan/bed_io.h>
 
-#include "parse_alignments.h"
-#include "hmm_1.h"
-#include "prepro_mle.h"
+#include "io/bam.h"
+#include "model/hmm.h"
+#include "model/prepro.h"
 
-#include "density_functions_reg.h"
-#include "density_functions_crosslink.h"
-#include "density_functions_crosslink_reg.h"
+#include "model/gamma_reg.h"
+#include "model/ztbin.h"
+#include "model/ztbin_reg.h"
 
 using namespace seqan;
 
