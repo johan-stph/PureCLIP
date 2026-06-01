@@ -82,7 +82,7 @@ struct FctLL_ZTBIN_REG
             String<Float> lls;
             resize(lls, length(setObs[s]), 0.0, Exact());
 #if HMM_PARALLEL
-            SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
+            SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(options.numThreads)) 
 #endif  
             for (unsigned i = 0; i < length(setObs[s]); ++i)
             {

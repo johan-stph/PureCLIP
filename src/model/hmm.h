@@ -284,12 +284,18 @@ Result<void> HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &
     modelParams.gamma1.invalidateCache();
     modelParams.gamma2.invalidateCache();
     bool stop = false;
-    for (unsigned s = 0; s < 2; ++s)
-    {
+    // ── Single parallel region over both strands + intervals ──
+    // collapse(2) + guided halves barrier count vs two sequential parallel for loops.
+    unsigned nFwd = length(this->setObs[0]);
+    unsigned nRev = length(this->setObs[1]);
+    unsigned nTotal = nFwd + nRev;
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1))
+    SEQAN_OMP_PRAGMA(parallel for schedule(guided))
 #endif
-        for (unsigned i = 0; i < length(this->setObs[s]); ++i)
+    for (unsigned idx = 0; idx < nTotal; ++idx)
+    {
+        unsigned s = (idx < nFwd) ? 0u : 1u;
+        unsigned i = (idx < nFwd) ? idx : (idx - nFwd);
         {
             bool discardInterval = false;
             for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)
@@ -494,7 +500,7 @@ Result<void> HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &
                 resize(p_i[k_1], this->K, Exact());
             }
 
-            SEQAN_OMP_PRAGMA(for schedule(dynamic, 1))
+            SEQAN_OMP_PRAGMA(for schedule(guided) nowait)
             for (unsigned i = 0; i < length(this->setObs[s]); ++i)
 #else
             String<String<Float> > alphas_1;
@@ -677,7 +683,7 @@ Result<void> HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
             for (unsigned t = 0; t < maxT; ++t)
                 resize(betas_1[t], this->K, Exact());
 
-            SEQAN_OMP_PRAGMA(for schedule(dynamic, 1))
+            SEQAN_OMP_PRAGMA(for schedule(guided) nowait)
             for (unsigned i = 0; i < length(this->setObs[s]); ++i)
 #else
         {

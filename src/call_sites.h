@@ -232,7 +232,7 @@ bool loadBAMCovariates(Data &data, TBai &inputBaiIndex, TStore &store, bool para
     bool stop = false;
     // TODO check if working
 #if HMM_PARALLEL
-    SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(parallelize ? 2 : 1))
+    SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(parallelize ? 2 : 1))
 #endif 
     for (unsigned s = 0; s < 2; ++s)
     {
@@ -809,7 +809,7 @@ void preproCoveredIntervals(Data &data, double &b0, double &b1, TBai &inputBaiIn
     for (unsigned s = 0; s < 2; ++s)
     {
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(parallelize ? options.numThreads : 1)) 
+        SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(parallelize ? options.numThreads : 1)) 
 #endif
         for (unsigned i = 0; i < length(data.setObs[s]); ++i)
         {
@@ -825,7 +825,7 @@ void preproCoveredIntervals(Data &data, double &b0, double &b1, TBai &inputBaiIn
     for (unsigned s = 0; s < 2; ++s)
     {
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(parallelize ? options.numThreads : 1)) 
+        SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(parallelize ? options.numThreads : 1)) 
 #endif
         for (unsigned i = 0; i < length(data.setObs[s]); ++i)
         {
@@ -939,7 +939,7 @@ bool learnModel(String<ModelParams<TGamma, TBIN> > &modelParams,
         resize(data.states, 2);
         bool stop = false;
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
+        SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(options.numThreads)) 
 #endif  
             for (unsigned i = 0; i < length(options.intervals_contigIds); ++i)
             {
@@ -1075,7 +1075,7 @@ bool applyModel(String<String<BedRecord<Bed6> > > &bedRecords_sites,
     
 #if HMM_PARALLEL
     omp_set_num_threads(options.numThreadsA);
-    SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreadsA/length(options.baiFileNames)))    // TODO improve general parallelization concept 
+    SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(options.numThreadsA/length(options.baiFileNames)))    // TODO improve general parallelization concept 
 #endif 
     for (unsigned i = 0; i < length(options.applyChr_contigIds); ++i)
     {
