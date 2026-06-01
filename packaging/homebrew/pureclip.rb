@@ -20,7 +20,7 @@ class Pureclip2 < Formula
       system "make", "-j#{ENV.make_jobs}"
     end
     bin.install "build/pureclip" => "pureclip2"
-    bin.install "build/winextract" => "winextract2"
+    bin.install "build/winextract"
   end
 
   test do
