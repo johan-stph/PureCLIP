@@ -17,6 +17,36 @@ project (PureCLIP CXX)
 # ----------------------------------------------------------------------------
 
 LIST ( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ )
+
+# ----------------------------------------------------------------------------
+# Apple Clang / arm64 (Apple Silicon) OpenMP support
+# Apple's clang does not bundle OpenMP; use libomp installed via Homebrew.
+# Install with:  brew install libomp
+# ----------------------------------------------------------------------------
+if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    find_program (BREW_EXEC brew)
+    if (BREW_EXEC)
+        execute_process (
+            COMMAND ${BREW_EXEC} --prefix libomp
+            OUTPUT_VARIABLE LIBOMP_PREFIX
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE LIBOMP_BREW_RESULT
+        )
+    endif()
+    if (LIBOMP_BREW_RESULT EQUAL 0 AND EXISTS "${LIBOMP_PREFIX}/lib/libomp.dylib")
+        message (STATUS "Apple Clang detected – using Homebrew libomp at ${LIBOMP_PREFIX}")
+        set (OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include")
+        set (OpenMP_CXX_LIB_NAMES "omp")
+        set (OpenMP_omp_LIBRARY "${LIBOMP_PREFIX}/lib/libomp.dylib")
+    else()
+        message (FATAL_ERROR
+            "Apple Clang requires libomp for OpenMP support.\n"
+            "Install it with:  brew install libomp\n"
+            "Then re-run cmake."
+        )
+    endif()
+endif()
+
 find_package ( OpenMP REQUIRED )
 include ( SeqAn )
 include ( Boost )
