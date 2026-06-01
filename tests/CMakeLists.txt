@@ -25,7 +25,7 @@
 
 set(T           "${CMAKE_CURRENT_SOURCE_DIR}")   # tests/ root
 set(SYN         "${T}/data/synthetic")
-set(REAL        "${T}/data/real")
+set(CHRM        "${T}/data/chrM")
 set(GOLDEN_SYN  "${T}/golden/synthetic")
 set(GOLDEN_CHR  "${T}/golden/chrM")
 set(OUT         "${CMAKE_BINARY_DIR}/test_output")
@@ -146,15 +146,15 @@ set_tests_properties(t1_8_thread_determinism PROPERTIES
 # Conditionally registered: skipped at cmake-configure time if data is absent.
 # =============================================================================
 
-if(EXISTS "${REAL}/chrM.bam" AND EXISTS "${REAL}/chrM.fa")
+if(EXISTS "${CHRM}/chrM.bam" AND EXISTS "${CHRM}/chrM.fa")
 
     # Helper macro: standard chrM pureclip invocation ────────────────────────
     macro(add_chrm_run TEST_NAME OUT_PFX)
         add_test(NAME ${TEST_NAME}
             COMMAND ${BIN}
-                -i   "${REAL}/chrM.bam"
-                -bai "${REAL}/chrM.bam.bai"
-                -g   "${REAL}/chrM.fa"
+                -i   "${CHRM}/chrM.bam"
+                -bai "${CHRM}/chrM.bam.bai"
+                -g   "${CHRM}/chrM.fa"
                 -o   "${OUT}/chrM/${OUT_PFX}_sites.bed"
                 -or  "${OUT}/chrM/${OUT_PFX}_regions.bed"
                 -p   "${OUT}/chrM/${OUT_PFX}_params.txt"
@@ -217,3 +217,4 @@ else()
         "Tier 2 tests DISABLED: chrM data not found.\n"
         "       Run:  tests/prepare_real.sh <path/to/sample_run>")
 endif()
+

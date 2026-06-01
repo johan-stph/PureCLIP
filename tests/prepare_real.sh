@@ -20,7 +20,7 @@ set -euo pipefail
 
 SAMPLE_RUN="${1:?Usage: $0 <sample_run_dir> [output_dir]}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUT_DIR="${2:-${SCRIPT_DIR}/data/real}"
+OUT_DIR="${2:-${SCRIPT_DIR}/data/chrM}"
 
 BAM="${SAMPLE_RUN}/aligned.prepro.bam"
 REF="${SAMPLE_RUN}/ref.hg19.fa"

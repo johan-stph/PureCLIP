@@ -1,7 +1,3 @@
-# Generated test data – not committed
-*.bam
-*.bai
+# Generated test data — not committed.
+# Committed test data (synthetic/ + chrM/) is in separate directories.
 *.sam
-*.fa
-*.fa.fai
-*.fasta
