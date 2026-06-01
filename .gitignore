@@ -3,3 +3,4 @@
 *.swp
 /docs/_build/
 *.vim
+sample_run/

@@ -76,6 +76,13 @@ scoring_scheme = 0       # 0=log-posterior-ratio (default), 1=crosslink-focused,
                          # 2=enrichment-focused, 3=balanced
 merge_distance = 8       # bp to merge adjacent crosslink sites into regions
 
+# ── Scheduling ──────────────────────────────────────────────────────────────
+# OpenMP loop schedule (compile-time, set via cmake).
+#   guided     – adaptive chunk sizes (default)
+#   dynamic,1  – original PureCLIP behavior, matches published output
+# Build: cmake -DPURECLIP_OMP_SCHEDULE=dynamic,1
+#schedule = "guided"
+
 # ── Debug / precision ───────────────────────────────────────────────────────
 verbosity = 1            # 0=quiet, 1=normal, 2=verbose, 3=very-verbose
 #high_precision = false   # Use long double (slower, only if needed for stability)

@@ -1,3 +1,4 @@
+#include "omp_schedule.h"
 // ======================================================================
 // PureCLIP: capturing target-specific protein-RNA interaction footprints
 // ======================================================================
@@ -232,7 +233,7 @@ bool loadBAMCovariates(Data &data, TBai &inputBaiIndex, TStore &store, bool para
     bool stop = false;
     // TODO check if working
 #if HMM_PARALLEL
-    SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(parallelize ? 2 : 1))
+    SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(parallelize ? 2 : 1))
 #endif 
     for (unsigned s = 0; s < 2; ++s)
     {
@@ -415,7 +416,7 @@ bool loadMotifCovariates(String<String<float> > &contigCovs, String<String<char>
                 {
                     if (bedRecord.strand == '+')
                     {
-                        if (bedRecord.beginPos < (int)length(contigCovs[0]))
+                        if (bedRecord.beginPos < static_cast<int>(length(contigCovs[0])))
                         {
                             contigCovs[0][bedRecord.beginPos] = std::max(score, 0.0);         // ignore negative scores for the moment
                             motifIds[0][bedRecord.beginPos] = id;
@@ -425,7 +426,7 @@ bool loadMotifCovariates(String<String<float> > &contigCovs, String<String<char>
                     }
                     else
                     {
-                        if (bedRecord.beginPos < (int)length(contigCovs[1]))
+                        if (bedRecord.beginPos < static_cast<int>(length(contigCovs[1])))
                         {
                             contigCovs[1][bedRecord.beginPos] = std::max(score, 0.0);
                             motifIds[1][bedRecord.beginPos] = id;
@@ -577,7 +578,7 @@ void extractCoveredIntervals(Data &data,
         while (i < i2 && contigObservationsF.truncCounts[i] == 0) ++i;    // find begin of covered interval     
         c1 = i;
         //std::cout << "TEST: i " << i << std::endl;
-        if (((int)c1 - (int)options.intervalOffset) > (int)prev_c2)    // if gap bigger than intervalOffset, shift c1 to left
+        if (((int)c1 - static_cast<int>(options.intervalOffset)) > static_cast<int>(prev_c2))    // if gap bigger than intervalOffset, shift c1 to left
         {
             c1 -= options.intervalOffset;
         }
@@ -664,7 +665,7 @@ void extractCoveredIntervals(Data &data,
     {
         while (i < i2_R && contigObservationsR.truncCounts[i] == 0) ++i;    // find begin of covered interval
         c1 = i;
-        if (((int)c1 - (int)options.intervalOffset) > (int)prev_c2)    // if gap bigger than intervalOffset, shift c1 to left
+        if (((int)c1 - static_cast<int>(options.intervalOffset)) > static_cast<int>(prev_c2))    // if gap bigger than intervalOffset, shift c1 to left
         {
             c1 -= options.intervalOffset;
         }
@@ -754,7 +755,7 @@ void extractCoveredIntervals(Data &data,
 template <typename TOptions>
 void computeSLR(double &b0, double &b1, Data &data, TOptions &options) // TODO check result
 {
-    unsigned w_50 = floor((double)options.bandwidthN - 0.1);    // binSize should be odd
+    unsigned w_50 = floor(static_cast<double>(options.bandwidthN) - 0.1);    // binSize should be odd
 
     String<double> kdes;
     String<unsigned> counts;
@@ -766,12 +767,12 @@ void computeSLR(double &b0, double &b1, Data &data, TOptions &options) // TODO c
             for (unsigned t = 0; t < data.setObs[s][i].length(); ++t)
             {
                 unsigned sum = 0;
-                for (unsigned j = std::max((int)t - (int)w_50, (int)0); (j < data.setObs[s][i].length()) && (j <= t + w_50); ++j)  // inefficient... update on the fly
+                for (unsigned j = std::max(static_cast<int>(t) - static_cast<int>(w_50), (int)0); (j < data.setObs[s][i].length()) && (j <= t + w_50); ++j)  // inefficient... update on the fly
                     sum += data.setObs[s][i].truncCounts[j];
                 
                 appendValue(kdes, data.setObs[s][i].kdesN[t], Generous());
                 appendValue(counts, sum, Generous());
-                // = std::max(sum, (unsigned)1);  // TODO avoid becoming 0 !
+                // = std::max(sum, 1u);  // TODO avoid becoming 0 !
                 //out << setObsF[i].kdes[t] << '\t' << sum << '\n';
             }
         }
@@ -784,14 +785,14 @@ void computeSLR(double &b0, double &b1, Data &data, TOptions &options) // TODO c
         mean_kde += kdes[i];
         mean_count += counts[i];
     }
-    mean_kde = mean_kde/(double)length(kdes);
-    mean_count = (double)mean_count/(double)length(counts);
+    mean_kde = mean_kde/static_cast<double>(length(kdes));
+    mean_count = static_cast<double>(mean_count) / static_cast<double>(length(counts));
 
     double sum1 = 0;
     double sum2 = 0;
     for (unsigned i = 0; i < length(kdes); ++i)
     {
-       sum1 += (kdes[i] - mean_kde) * ((double)counts[i] - mean_count);
+       sum1 += (kdes[i] - mean_kde) * (static_cast<double>(counts[i]) - mean_count);
        sum2 += pow((kdes[i] - mean_kde), 2);
     }
 
@@ -809,7 +810,7 @@ void preproCoveredIntervals(Data &data, double &b0, double &b1, TBai &inputBaiIn
     for (unsigned s = 0; s < 2; ++s)
     {
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(parallelize ? options.numThreads : 1)) 
+        SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(parallelize ? options.numThreads : 1)) 
 #endif
         for (unsigned i = 0; i < length(data.setObs[s]); ++i)
         {
@@ -825,7 +826,7 @@ void preproCoveredIntervals(Data &data, double &b0, double &b1, TBai &inputBaiIn
     for (unsigned s = 0; s < 2; ++s)
     {
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(parallelize ? options.numThreads : 1)) 
+        SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(parallelize ? options.numThreads : 1)) 
 #endif
         for (unsigned i = 0; i < length(data.setObs[s]); ++i)
         {
@@ -939,7 +940,7 @@ bool learnModel(String<ModelParams<TGamma, TBIN> > &modelParams,
         resize(data.states, 2);
         bool stop = false;
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(options.numThreads)) 
+        SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(options.numThreads)) 
 #endif  
             for (unsigned i = 0; i < length(options.intervals_contigIds); ++i)
             {
@@ -1075,7 +1076,7 @@ bool applyModel(String<String<BedRecord<Bed6> > > &bedRecords_sites,
     
 #if HMM_PARALLEL
     omp_set_num_threads(options.numThreadsA);
-    SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(options.numThreadsA/length(options.baiFileNames)))    // TODO improve general parallelization concept 
+    SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(options.numThreadsA/length(options.baiFileNames)))    // TODO improve general parallelization concept 
 #endif 
     for (unsigned i = 0; i < length(options.applyChr_contigIds); ++i)
     {

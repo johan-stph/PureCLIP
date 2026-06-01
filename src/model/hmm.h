@@ -1,3 +1,4 @@
+#include "omp_schedule.h"
 // ======================================================================
 // PureCLIP: capturing target-specific protein-RNA interaction footprints
 // ======================================================================
@@ -290,7 +291,7 @@ Result<void> HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &
     unsigned nRev = length(this->setObs[1]);
     unsigned nTotal = nFwd + nRev;
 #if HMM_PARALLEL
-    SEQAN_OMP_PRAGMA(parallel for schedule(guided))
+    SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR)
 #endif
     for (unsigned idx = 0; idx < nTotal; ++idx)
     {
@@ -500,7 +501,7 @@ Result<void> HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &
                 resize(p_i[k_1], this->K, Exact());
             }
 
-            SEQAN_OMP_PRAGMA(for schedule(guided) nowait)
+            SEQAN_OMP_PRAGMA(PURECLIP_OMP_FOR_NOWAIT)
             for (unsigned i = 0; i < length(this->setObs[s]); ++i)
 #else
             String<String<Float> > alphas_1;
@@ -683,7 +684,7 @@ Result<void> HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
             for (unsigned t = 0; t < maxT; ++t)
                 resize(betas_1[t], this->K, Exact());
 
-            SEQAN_OMP_PRAGMA(for schedule(guided) nowait)
+            SEQAN_OMP_PRAGMA(PURECLIP_OMP_FOR_NOWAIT)
             for (unsigned i = 0; i < length(this->setObs[s]); ++i)
 #else
         {

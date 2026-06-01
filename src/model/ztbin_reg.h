@@ -1,3 +1,4 @@
+#include "omp_schedule.h"
 // ======================================================================
 // PureCLIP: capturing target-specific protein-RNA interaction footprints
 // ======================================================================
@@ -82,7 +83,7 @@ struct FctLL_ZTBIN_REG
             String<Float> lls;
             resize(lls, length(setObs[s]), 0.0, Exact());
 #if HMM_PARALLEL
-            SEQAN_OMP_PRAGMA(parallel for schedule(guided) num_threads(options.numThreads)) 
+            SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(options.numThreads)) 
 #endif  
             for (unsigned i = 0; i < length(setObs[s]); ++i)
             {
@@ -212,7 +213,7 @@ Float ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, AppOptions con
 
     // use boost implementation, maybe avoids overflow
     boost::math::binomial_distribution<Float> boostBin;
-    boostBin = boost::math::binomial_distribution<Float> ((int)n2, pred); 
+    boostBin = boost::math::binomial_distribution<Float> (static_cast<int>(n2), pred); 
 
     Float res = boost::math::pdf(boostBin, k2);
     if (std::isnan(res) || std::isinf(res))   // or any other error?
