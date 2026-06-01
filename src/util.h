@@ -31,9 +31,12 @@
 
 #include <math.h>    
 
+// SeqAn 2.5+ renamed namespace seqan -> seqan2; alias for source compatibility.
+namespace seqan = seqan2;
+
 using namespace seqan;
 
-namespace seqan {
+namespace seqan2 {
 
     // TODO investigate impact
     class LogSumExp_lookupTable
@@ -48,7 +51,7 @@ namespace seqan {
             LogSumExp_lookupTable(unsigned size_, double minValue_) : size(size_), minValue(minValue_)
         {
             resize(lookupTable, size+1, Exact());
-            for(int i = 0; i <= size; ++i)
+            for(unsigned i = 0; i <= size; ++i)
                 lookupTable[i] = log1p(exp(i*(-minValue/size) + minValue));
             std::cout << "Created look-up table for values from " << ((0 * -minValue/size) + minValue) << " to " << ((size * -minValue/size) + minValue) << " with step size " << (-minValue/size) << " (size: " << size<< ")." << std::endl;
         }
@@ -285,7 +288,7 @@ namespace seqan {
 
 
     struct ContigObservations {
-        String<__uint16> truncCounts; 
+        String<uint16_t> truncCounts; 
     };
 
     void reverse(ContigObservations &contigObservations)
@@ -297,10 +300,10 @@ namespace seqan {
     // workaround because partially specialized member function are forbidden
     // wrapper class for observations
     struct Observations {
-        Infix<String<__uint16> >::Type truncCounts;
+        Infix<String<uint16_t> >::Type truncCounts;
         unsigned contigId; 
 
-        String<__uint32>    nEstimates;      
+        String<uint32_t>    nEstimates;      
         String<double>      kdes;       // used for 'enriched'. 'non-enriched' classification
         String<double>      kdesN;    // used to estimate the binomial n parameters (decoupled, might be useful e.g. for longer crosslink clusters) 
         String<double>      rpkms;      // change name -> e.g. bgSignal
@@ -308,7 +311,7 @@ namespace seqan {
         String<char>        motifIds; // for each t: one motif score
         bool                discard;    // NOTE: only use for application, not for learning!
 
-        Observations(Infix<String<__uint16> >::Type _truncCounts) : truncCounts(_truncCounts),
+        Observations(Infix<String<uint16_t> >::Type _truncCounts) : truncCounts(_truncCounts),
                                                                     discard(false) {}
         Observations() : truncCounts(),
                          discard(false) {}
@@ -316,7 +319,7 @@ namespace seqan {
         void estimateNs(AppOptions &options);                       // using raw counts
         void estimateNs(double b0, double b1, AppOptions /*&options*/); // using KDEs
         void computeKDEs(AppOptions &options);
-        void computeKDEs(String<__uint16> &inputTruncCounts, AppOptions &options);    // input signal
+        void computeKDEs(String<uint16_t> &inputTruncCounts, AppOptions &options);    // input signal
 
         unsigned length();
     };
@@ -347,7 +350,7 @@ namespace seqan {
         resize(this->nEstimates, length(), Exact());
         for (unsigned t = 0; t < length(); ++t)
         {
-            this->nEstimates[t] = (__uint16)std::max((int)floor(b0 + b1*this->kdesN[t] + 0.5), 1);   // avoid becoming 0  
+            this->nEstimates[t] = (uint16_t)std::max((int)floor(b0 + b1*this->kdesN[t] + 0.5), 1);   // avoid becoming 0  
         }
     }
 
@@ -449,7 +452,7 @@ namespace seqan {
     // keep in mind: same intervals used as for target (+- 2*bdw)
     // could cause underestimation of input KDEs at interval boarders
     // anyway only very low values of gaussian kernel there
-    void Observations::computeKDEs(String<__uint16> &truncCounts, AppOptions &options)
+    void Observations::computeKDEs(String<uint16_t> &truncCounts, AppOptions &options)
     {
         resize(this->rpkms, length());
 
@@ -490,7 +493,7 @@ namespace seqan {
         String<String<Observations> >               setObs;       // F/R:interval:t
         String<String<unsigned> >                   setPos;
         String<String<String<String<double> > > >   statePosteriors;  // F/R:state:interval:t
-        String<String<String<__uint8> > >           states;
+        String<String<String<uint8_t> > >           states;
     };
 
     void append(Data &dataA, Data &dataB)

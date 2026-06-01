@@ -35,6 +35,9 @@
 #include <seqan/bed_io.h>
 #include <seqan/misc/interval_tree.h> 
 
+// SeqAn 2.5+ renamed namespace seqan -> seqan2; alias for source compatibility.
+namespace seqan = seqan2;
+
 using namespace seqan;
 
 

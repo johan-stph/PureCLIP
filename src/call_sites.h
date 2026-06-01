@@ -261,7 +261,7 @@ bool loadBAMCovariates(Data &data, TBai &inputBaiIndex, TStore &store, bool para
                 stop = true;
                 continue;
             }
-            String<__uint16> truncCounts;
+            String<uint16_t> truncCounts;
             resize(truncCounts, data.setObs[s][i].length(), 0, Exact());
             if (s == 0)
             {

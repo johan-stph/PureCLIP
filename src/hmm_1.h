@@ -1,7 +1,7 @@
 // ======================================================================
 // PureCLIP: capturing target-specific protein-RNA interaction footprints
 // ======================================================================
-// Copyright (C) 2017  Sabrina Krakau, Max Planck Institute for Molecular 
+// Copyright (C) 2017  Sabrina Krakau, Max Planck Institute for Molecular
 // Genetics
 //
 // This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@
 
 #ifndef APPS_HMMS_HMM_1_H_
 #define APPS_HMMS_HMM_1_H_
-  
+
 
 #include <iostream>
 #include <fstream>
@@ -32,17 +32,17 @@
 #include "density_functions_reg.h"
 #include "density_functions_crosslink.h"
 #include "density_functions_crosslink_reg.h"
-#include <math.h>  
+#include <math.h>
 
 using namespace seqan;
 
 
 template <typename TGAMMA, typename TBIN>
-class HMM {     
+class HMM {
 
 public:
 
-    __uint8                                 K;                  // no. of sates
+    uint8_t                                 K;                  // no. of sates
     String<String<String<long double> > >   initProbs;          // initial probabilities
 
     String<String<Observations> >           & setObs;          // workaround for partial specialization
@@ -56,7 +56,7 @@ public:
         resize(transMatrix, K, Exact());
         for (unsigned i = 0; i < K; ++i)
             resize(transMatrix[i], K, 0.25, Exact());
-       
+
         resize(initProbs, 2, Exact());
         resize(eProbs, 2, Exact());
         resize(statePosteriors, 2, Exact());
@@ -87,15 +87,15 @@ public:
             }
         }
     }
-    // Copy constructor 
-//     HMM<TGAMMA, TBIN>(const HMM<TGAMMA, TBIN> &hmm2) {x = p2.x; y = p2.y; } 
+    // Copy constructor
+//     HMM<TGAMMA, TBIN>(const HMM<TGAMMA, TBIN> &hmm2) {x = p2.x; y = p2.y; }
 
-    HMM<TGAMMA, TBIN>();
-    ~HMM<TGAMMA, TBIN>();
-    
+    HMM();
+    ~HMM();
+
     bool computeEmissionProbs(ModelParams<TGAMMA, TBIN> &modelParams, bool learning, AppOptions &options);
-    bool iForward(String<String<long double> > &alphas_1, unsigned s, unsigned i, String<String<long double> > &logA, AppOptions &options);    
-    bool iBackward(String<String<long double> > &betas_1, unsigned s, unsigned i, String<String<long double> > &logA, AppOptions &options);    
+    bool iForward(String<String<long double> > &alphas_1, unsigned s, unsigned i, String<String<long double> > &logA, AppOptions &options);
+    bool iBackward(String<String<long double> > &betas_1, unsigned s, unsigned i, String<String<long double> > &logA, AppOptions &options);
     bool computeStatePosteriorsFB(AppOptions &options);
     bool computeStatePosteriorsFBupdateTrans(AppOptions &options);
     bool updateTransAndPostProbs(AppOptions &options);
@@ -103,8 +103,8 @@ public:
     bool updateDensityParams(ModelParams<TGAMMA, TBIN> &modelParams, AppOptions &options);
     bool baumWelch(ModelParams<TGAMMA, TBIN> &modelParams, CharString learnTag, AppOptions &options);
     bool applyParameters(ModelParams<TGAMMA, TBIN> &modelParams, AppOptions &/*options*/);
-    void posteriorDecoding(String<String<String<__uint8> > > &states);
-    void rmBoarderArtifacts(String<String<String<__uint8> > > &states, String<Data> &data_replicates, String<ModelParams<TGAMMA, TBIN> > &modelParams);
+    void posteriorDecoding(String<String<String<uint8_t> > > &states);
+    void rmBoarderArtifacts(String<String<String<uint8_t> > > &states, String<Data> &data_replicates, String<ModelParams<TGAMMA, TBIN> > &modelParams);
 
     // for each F/R,interval,t, state ....
     String<String<String<String<double> > > > eProbs;           // emission/observation probabilities  P(Y_t | S_t) -> precompute for each t given Y_t = (C_t, T_t) !!!
@@ -113,7 +113,7 @@ public:
 
 
 template<typename TGAMMA, typename TBIN>
-HMM<TGAMMA, TBIN>::~HMM<TGAMMA, TBIN>()
+HMM<TGAMMA, TBIN>::~HMM()
 {
     clear(this->eProbs);
     clear(this->statePosteriors);
@@ -129,13 +129,13 @@ HMM<TGAMMA, TBIN>::~HMM<TGAMMA, TBIN>()
 
 long double myLog(long double x)
 {
-    if (x == 0) return std::numeric_limits<long double>::quiet_NaN();  
+    if (x == 0) return std::numeric_limits<long double>::quiet_NaN();
     return log(x);
 }
 
 long double myExp(long double x)
 {
-    if (std::isnan(x)) return 0.0;  
+    if (std::isnan(x)) return 0.0;
     return exp(x);
 }
 
@@ -154,7 +154,7 @@ long double get_logSumExp(long double &f1, long double &f2, LogSumExp_lookupTabl
 // log-sum-exp trick
 long double get_logSumExp_states(long double f1, long double f2, long double f3, long double f4, LogSumExp_lookupTable &lookUp)
 {
-    long double sum; 
+    long double sum;
     sum = get_logSumExp(f1, f2, lookUp);
     sum = get_logSumExp(sum, f3, lookUp);
     sum = get_logSumExp(sum, f4, lookUp);
@@ -163,7 +163,7 @@ long double get_logSumExp_states(long double f1, long double f2, long double f3,
 
 // log-sum-exp trick for string
 long double get_logSumExp(String<long double> &fs, LogSumExp_lookupTable &lookUp)
-{   
+{
     long double sum = std::numeric_limits<long double>::quiet_NaN();
 
     for (unsigned i = 0; i < length(fs); ++i)
@@ -195,10 +195,10 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
 {
     long double gamma1_d = 1.0;
     long double gamma2_d = 0.0;
-    if (setObs.kdes[t] >= gamma1.tp) 
+    if (setObs.kdes[t] >= gamma1.tp)
     {
         gamma1_d = gamma1.getDensity(setObs.kdes[t]);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t]); 
+        gamma2_d = gamma2.getDensity(setObs.kdes[t]);
     }
     long double bin1_d = 1.0;
     long double bin2_d = 0.0;
@@ -208,7 +208,7 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
         bin2_d = bin2.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
     }
     // log-space
-    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d); 
+    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d);
     eProbs[1] = myLog(gamma1_d) + myLog(bin2_d);
     eProbs[2] = myLog(gamma2_d) + myLog(bin1_d);
     eProbs[3] = myLog(gamma2_d) + myLog(bin2_d);
@@ -219,21 +219,21 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
     {
         if (options.verbosity >= 2)
         {
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "WARNING: emission probabilities 0.0!" << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       fragment coverage (kde): " << setObs.kdes[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       read start count: " << (int)setObs.truncCounts[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       estimated n: " << setObs.nEstimates[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
         }
         eProbs[0] = 0.0;
@@ -241,7 +241,7 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
         eProbs[2] = std::numeric_limits<double>::quiet_NaN();
         eProbs[3] = std::numeric_limits<double>::quiet_NaN();
         return false;
-    } 
+    }
     return true;
 }
 
@@ -254,10 +254,10 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
 
     long double gamma1_d = 1.0;
     long double gamma2_d = 0.0;
-    if (setObs.kdes[t] >= gamma1.tp) 
+    if (setObs.kdes[t] >= gamma1.tp)
     {
         gamma1_d = gamma1.getDensity(setObs.kdes[t], gamma1_pred, options);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t], gamma2_pred, options); 
+        gamma2_d = gamma2.getDensity(setObs.kdes[t], gamma2_pred, options);
     }
 
     long double bin1_d = 1.0;
@@ -268,36 +268,36 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
         bin2_d = bin2.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
     }
     // log-space
-    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d); 
+    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d);
     eProbs[1] = myLog(gamma1_d) + myLog(bin2_d);
     eProbs[2] = myLog(gamma2_d) + myLog(bin1_d);
     eProbs[3] = myLog(gamma2_d) + myLog(bin2_d);
 
-    // 
+    //
     if ((gamma1_d + gamma2_d == 0.0) || (bin1_d + bin2_d == 0.0) ||
             (std::isnan(eProbs[0]) && std::isnan(eProbs[1]) && std::isnan(eProbs[2]) && std::isnan(eProbs[3])) )
     {
         if (options.verbosity >= 2)
         {
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "WARNING: emission probabilities going against 0.0!" << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       fragment coverage (kde): " << setObs.kdes[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       read start count: " << (int)setObs.truncCounts[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       estimated n: " << setObs.nEstimates[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       covariate b: " << x << " predicted mean 'non-enriched': " << gamma1_pred << " predicted mean 'enriched': " << gamma2_pred << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
-        }    
+        }
         eProbs[0] = 0.0;
         eProbs[1] = std::numeric_limits<double>::quiet_NaN();
         eProbs[2] = std::numeric_limits<double>::quiet_NaN();
@@ -312,10 +312,10 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
 {
     long double gamma1_d = 1.0;
     long double gamma2_d = 0.0;
-    if (setObs.kdes[t] >= gamma1.tp) 
+    if (setObs.kdes[t] >= gamma1.tp)
     {
         gamma1_d = gamma1.getDensity(setObs.kdes[t]);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t]); 
+        gamma2_d = gamma2.getDensity(setObs.kdes[t]);
     }
     unsigned mId = setObs.motifIds[t];
     long double bin1_pred = 1.0/(1.0+exp(-bin1.b0 - bin1.regCoeffs[mId]*setObs.fimoScores[t]));
@@ -340,23 +340,23 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
     {
         if (options.verbosity >= 2)
         {
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "WARNING: emission probabilities going against 0.0!" << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       fragment coverage (kde): " << setObs.kdes[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       read start count: " << (int)setObs.truncCounts[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       estimated n: " << setObs.nEstimates[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       covariate x: " << setObs.fimoScores[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
         }
         eProbs[0] = 0.0;
@@ -377,10 +377,10 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
 
     long double gamma1_d = 1.0;
     long double gamma2_d = 0.0;
-    if (setObs.kdes[t] >= gamma1.tp) 
+    if (setObs.kdes[t] >= gamma1.tp)
     {
         gamma1_d = gamma1.getDensity(setObs.kdes[t], gamma1_pred, options);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t], gamma2_pred, options); 
+        gamma2_d = gamma2.getDensity(setObs.kdes[t], gamma2_pred, options);
     }
     unsigned mId = setObs.motifIds[t];
     long double bin1_pred = 1.0/(1.0+exp(-bin1.b0 - bin1.regCoeffs[mId]*setObs.fimoScores[t]));
@@ -399,31 +399,31 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
     eProbs[2] = myLog(gamma2_d) + myLog(bin1_d);
     eProbs[3] = myLog(gamma2_d) + myLog(bin2_d);
 
-    // 
+    //
     if ((gamma1_d + gamma2_d == 0.0) || (bin1_d + bin2_d == 0.0) ||
             (std::isnan(eProbs[0]) && std::isnan(eProbs[1]) && std::isnan(eProbs[2]) && std::isnan(eProbs[3])) )
     {
         if (options.verbosity >= 2)
         {
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "WARNING: emission probabilities going against 0.0!" << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       fragment coverage (kde): " << setObs.kdes[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       read start count: " << (int)setObs.truncCounts[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       estimated n: " << setObs.nEstimates[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       covariate b: " << x << " predicted mean 'non-enriched': " << gamma1_pred << " predicted mean 'enriched': " << gamma2_pred << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       covariate x: " << setObs.fimoScores[t] << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
-            SEQAN_OMP_PRAGMA(critical) 
+            SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
         }
         eProbs[0] = 0.0;
@@ -443,65 +443,65 @@ bool HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &modelPar
     for (unsigned s = 0; s < 2; ++s)
     {
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1)) 
-#endif  
+        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1))
+#endif
         for (unsigned i = 0; i < length(this->setObs[s]); ++i)
         {
             bool discardInterval = false;
-            for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)  
+            for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)
             {
                 if (this->setObs[s][i].kdes[t] == 0.0)
                 {
                     std::cerr << "ERROR: KDE is 0.0 at i " << i << " t: " << t << std::endl;
-                    SEQAN_OMP_PRAGMA(critical) 
+                    SEQAN_OMP_PRAGMA(critical)
                     stop = true;
                 }
 
                 if (!computeEProb(this->eProbs[s][i][t], this->setObs[s][i], modelParams.gamma1, modelParams.gamma2, modelParams.bin1, modelParams.bin2, t, options))
                 {
-                    SEQAN_OMP_PRAGMA(critical) 
+                    SEQAN_OMP_PRAGMA(critical)
                     discardInterval = true;
                 }
             }
             if (learning && discardInterval)
             {
-                SEQAN_OMP_PRAGMA(critical) 
+                SEQAN_OMP_PRAGMA(critical)
                 std::cout << "ERROR: Emission probability became 0.0! This might be due to artifacts or outliers." << std::endl;
                 SEQAN_OMP_PRAGMA(critical)
                 if (options.verbosity >= 2)
                 {
-                    if (s == 0) 
+                    if (s == 0)
                         std::cout << " Interval: [" << (this->setPos[s][i]) << ", " << (this->setPos[s][i] + this->setObs[s][i].length()) << ") on forward strand." << std::endl;
-                    else 
+                    else
                         std::cout << " Interval: [" << (this->contigLength - this->setPos[s][i] - 1) << ", " << (this->contigLength - this->setPos[s][i] - 1 + this->setObs[s][i].length()) << ") on reverse strand." << std::endl;
                 }
                 stop = true;
                 if (!options.useHighPrecision)  // TODO ?
                 {
-                    SEQAN_OMP_PRAGMA(critical) 
+                    SEQAN_OMP_PRAGMA(critical)
                     std::cout << "NOTE: Try running PureCLIP in high floating-point precision mode (long double, parameter '-ld')." << std::endl;
                 }
             }
-            else if (!learning && discardInterval) 
+            else if (!learning && discardInterval)
             {
                 this->setObs[s][i].discard = true;
-                SEQAN_OMP_PRAGMA(critical) 
+                SEQAN_OMP_PRAGMA(critical)
                 std::cout << "Warning: discarding interval on forward strand due to emission probabilities of 0.0 (set to state 'non-enriched + non-crosslink')." << std::endl;
                 if (options.verbosity >= 2)
                 {
-                    SEQAN_OMP_PRAGMA(critical) 
-                    if (s == 0) 
+                    SEQAN_OMP_PRAGMA(critical)
+                    if (s == 0)
                         std::cout << " Interval [" << (this->setPos[s][i]) << ", " << (this->setPos[s][i] + this->setObs[s][i].length()) << ") on forward strand. " << std::endl;
-                    else 
+                    else
                         std::cout << " Interval [" << (this->contigLength - this->setPos[s][i] - 1) << ", " << (this->contigLength - this->setPos[s][i] - 1 + this->setObs[s][i].length()) << ") on reverse strand." << std::endl;
                 }
                 if (!options.useHighPrecision)  // TODO ?
                 {
-                    SEQAN_OMP_PRAGMA(critical) 
+                    SEQAN_OMP_PRAGMA(critical)
                     std::cout << "NOTE: If this happens frequently, rerun PureCLIP in high floating-point precision mode (long double, parameter '-ld')." << std::endl;
                 }
             }
-        }   
+        }
     }
     if (stop) return false;
     return true;
@@ -532,7 +532,7 @@ bool HMM<TGAMMA, TBIN>::iForward(String<String<long double> > &alphas_1, unsigne
     for (unsigned t = 1; t < this->setObs[s][i].length(); ++t)
     {
         for (unsigned k = 0; k < this->K; ++k)
-        { 
+        {
             long double f1 = alphas_1[t-1][0] + logA[0][k] + this->eProbs[s][i][t][k];
             long double f2 = alphas_1[t-1][1] + logA[1][k] + this->eProbs[s][i][t][k];
             long double f3 = alphas_1[t-1][2] + logA[2][k] + this->eProbs[s][i][t][k];
@@ -563,8 +563,8 @@ bool HMM<TGAMMA, TBIN>::iBackward(String<String<long double> > &betas_1, unsigne
     unsigned T = this->setObs[s][i].length();
     // for t = T
     for (unsigned k = 0; k < this->K; ++k)
-       betas_1[this->setObs[s][i].length() - 1][k] = log(1.0);
-    
+       betas_1[T - 1][k] = log(1.0);
+
     // for t = 2:T
     for (int t = this->setObs[s][i].length() - 2; t >= 0; --t)
     {
@@ -599,7 +599,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
     for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
         for (unsigned k_2 = 0; k_2 < this->K; ++k_2)
             logA[k_1][k_2] = log(this->transMatrix[k_1][k_2]);
- 
+
     String<String<long double> > p;
     resize(p, this->K, Exact());
     for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
@@ -610,14 +610,14 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
             p[k_1][k_2] = 0.0;
     }
     long double p_2_2 = 0.0;     // for separate learning of trans. prob from '2' -> '2'
-    long double p_2_3 = 0.0;     // for separate learning of trans. prob from '2' -> '3'               
+    long double p_2_3 = 0.0;     // for separate learning of trans. prob from '2' -> '3'
 
     for (unsigned s = 0; s < 2; ++s)
     {
         bool stop = false;
 #if HMM_PARALLEL
         SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1))
-#endif  
+#endif
         for (unsigned i = 0; i < length(this->setObs[s]); ++i)
         {
             unsigned T = setObs[s][i].length();
@@ -634,7 +634,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
                 continue;
             }
 
-            // backward probabilities  
+            // backward probabilities
             String<String<long double> > betas_1;
             resize(betas_1, T, Exact());
             for (unsigned t = 0; t < T; ++t)
@@ -645,7 +645,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
                 stop = true;
                 continue;
             }
-           
+
             // compute state posterior probabilities
             for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)
             {
@@ -659,9 +659,9 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
                 for (unsigned k = 0; k < this->K; ++k)
                 {
                     this->statePosteriors[s][k][i][t] = myExp(alphas_1[t][k] + betas_1[t][k] - norm);     // store not in log-space!
- 
-                    if (std::isnan(this->statePosteriors[s][k][i][t]) || std::isinf(this->statePosteriors[s][k][i][t]) || 
-                        this->statePosteriors[s][k][i][t] < 0.0 || this->statePosteriors[s][k][i][t] > 1.0) 
+
+                    if (std::isnan(this->statePosteriors[s][k][i][t]) || std::isinf(this->statePosteriors[s][k][i][t]) ||
+                        this->statePosteriors[s][k][i][t] < 0.0 || this->statePosteriors[s][k][i][t] > 1.0)
                     {
                         std::cout << "ERROR: state posterior probability is " << this->statePosteriors[s][k][i][t] << "." << std::endl;
                         std::cout << "       s: " << s << " i: " << i << " t: " << t << " k:" << k << std::endl;
@@ -674,21 +674,21 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
 
             // update initial probabilities
             for (unsigned k = 0; k < this->K; ++k)
-                this->initProbs[s][i][k] = this->statePosteriors[s][k][i][0]; 
+                this->initProbs[s][i][k] = this->statePosteriors[s][k][i][0];
 
             // compute xi values for interval in preparation for new trans. probs
             String<String<long double> > xis;
             resize(xis, this->K, Exact());
             String<String<long double> > p_i;
             resize(p_i, this->K, Exact());
-            for (unsigned k_1 = 0; k_1 < this->K; ++k_1)   
+            for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
             {
                 resize(xis[k_1], this->K, 0.0, Exact());
                 resize(p_i[k_1], this->K, 0.0, Exact());
             }
             long double p_2_2_i = 0.0;
             long double p_2_3_i = 0.0;
-            // 
+            //
             for (unsigned t = 1; t < this->setObs[s][i].length(); ++t)
             {
                 long double norm = std::numeric_limits<long double>::quiet_NaN();
@@ -712,11 +712,11 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
                 }
             }
             // add to global sum
-            for (unsigned k_1 = 0; k_1 < this->K; ++k_1) 
+            for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
                 for (unsigned k_2 = 0; k_2 < this->K; ++k_2)
                     SEQAN_OMP_PRAGMA(critical)
                         p[k_1][k_2] += p_i[k_1][k_2];
-            
+
             SEQAN_OMP_PRAGMA(critical)
                 p_2_2 += p_2_2_i;
             SEQAN_OMP_PRAGMA(critical)
@@ -731,7 +731,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
     {
         long double denumerator = 0.0;
         for (unsigned k_3 = 0; k_3 < this->K; ++k_3)
-            denumerator += p[k_1][k_3]; 
+            denumerator += p[k_1][k_3];
 
         for (unsigned k_2 = 0; k_2 < this->K; ++k_2)
         {
@@ -739,7 +739,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &options)
             if (A[k_1][k_2] <= 0.0) A[k_1][k_2] = DBL_MIN;          // make sure not getting zero
         }
     }
-    // Fix p[2->2/3] using only trans. probs. for region over nThresholdForP, while keeping sum of p[2->2] and p[2->3] constant 
+    // Fix p[2->2/3] using only trans. probs. for region over nThresholdForP, while keeping sum of p[2->2] and p[2->3] constant
     if (options.nThresholdForTransP > 0)
     {
         long double sum_2_23 = A[2][2] + A[2][3];
@@ -772,8 +772,8 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
     {
         bool stop = false;
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1)) 
-#endif  
+        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1))
+#endif
         for (unsigned i = 0; i < length(this->setObs[s]); ++i)
         {
             unsigned T = setObs[s][i].length();
@@ -800,7 +800,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
                 stop = true;
                 continue;
             }
- 
+
             // compute state posterior probabilities (in log-space)
             for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)
             {
@@ -832,7 +832,7 @@ bool HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
 
 bool updateDensityParams2(String<String<String<double> > > &statePosteriors1, String<String<String<double> > > &statePosteriors2, String<String<Observations> > &setObs, 
                           GAMMA &gamma1, GAMMA &gamma2, 
-                          unsigned &iter, unsigned &trial,
+                          unsigned & /*iter*/, unsigned & /*trial*/,
                           AppOptions &options)
 {
     if (!gamma1.updateThetaAndK(statePosteriors1, setObs, options.g1_kMin, options.g1_kMax, options))
@@ -841,13 +841,13 @@ bool updateDensityParams2(String<String<String<double> > > &statePosteriors1, St
     if (!gamma2.updateThetaAndK(statePosteriors2, setObs, options.g2_kMin, options.g2_kMax, options))         // make sure g1k <= g2k
         return false;
 
-    // make sure gamma1.mu < gamma2.mu   
+    // make sure gamma1.mu < gamma2.mu
     checkOrderG1G2(gamma1, gamma2, options);
     return true;
 }
 
-bool updateDensityParams2(String<String<String<double> > > &statePosteriors1, String<String<String<double> > > &statePosteriors2, String<String<Observations> > &setObs, 
-                          GAMMA_REG &gamma1, GAMMA_REG &gamma2, 
+bool updateDensityParams2(String<String<String<double> > > &statePosteriors1, String<String<String<double> > > &statePosteriors2, String<String<Observations> > &setObs,
+                          GAMMA_REG &gamma1, GAMMA_REG &gamma2,
                           unsigned &iter, unsigned &trial,
                           AppOptions &options)
 {
@@ -861,14 +861,14 @@ bool updateDensityParams2(String<String<String<double> > > &statePosteriors1, St
     if (!gamma2.updateRegCoeffsAndK(statePosteriors2, setObs, g2_kMin, options.g2_kMax, options))
         return false;
 
-    // make sure gamma1.mu < gamma2.mu    
+    // make sure gamma1.mu < gamma2.mu
     checkOrderG1G2(gamma1, gamma2, iter, trial, options);
     return true;
 }
 
 
 template<typename TGAMMA, typename TBIN>
-bool HMM<TGAMMA, TBIN>::updateDensityParams(TGAMMA &gamma1, TGAMMA &gamma2, unsigned &iter, unsigned &trial, AppOptions &options)   
+bool HMM<TGAMMA, TBIN>::updateDensityParams(TGAMMA &gamma1, TGAMMA &gamma2, unsigned &iter, unsigned &trial, AppOptions &options)
 {
     String<String<String<double> > > statePosteriors1;
     String<String<String<double> > > statePosteriors2;
@@ -890,14 +890,14 @@ bool HMM<TGAMMA, TBIN>::updateDensityParams(TGAMMA &gamma1, TGAMMA &gamma2, unsi
         }
     }
 
-    updateDensityParams2(statePosteriors1, statePosteriors2, this->setObs, gamma1, gamma2, iter, trial, options); 
+    updateDensityParams2(statePosteriors1, statePosteriors2, this->setObs, gamma1, gamma2, iter, trial, options);
 
     return true;
 }
 
 
 template<typename TGAMMA, typename TBIN>
-bool HMM<TGAMMA, TBIN>::updateDensityParams(ModelParams<TGAMMA, TBIN> &modelParams, AppOptions &options)   
+bool HMM<TGAMMA, TBIN>::updateDensityParams(ModelParams<TGAMMA, TBIN> &modelParams, AppOptions &options)
 {
     String<String<String<double> > > statePosteriors1;
     String<String<String<double> > > statePosteriors2;
@@ -920,10 +920,10 @@ bool HMM<TGAMMA, TBIN>::updateDensityParams(ModelParams<TGAMMA, TBIN> &modelPara
     }
 
     // truncation counts
-    modelParams.bin1.updateP(statePosteriors1, this->setObs, options); 
+    modelParams.bin1.updateP(statePosteriors1, this->setObs, options);
     modelParams.bin2.updateP(statePosteriors2, this->setObs, options);
 
-    // make sure bin1.p < bin2.p   
+    // make sure bin1.p < bin2.p
     checkOrderBin1Bin2(modelParams.bin1, modelParams.bin2);
 
     return true;
@@ -933,7 +933,7 @@ bool HMM<TGAMMA, TBIN>::updateDensityParams(ModelParams<TGAMMA, TBIN> &modelPara
 
 // Baum-Welch
 // in log-space (using log-sum-exp trick)
-template<typename TGAMMA, typename TBIN> 
+template<typename TGAMMA, typename TBIN>
 bool HMM<TGAMMA, TBIN>::baumWelch(ModelParams<TGAMMA, TBIN> &modelParams, CharString learnTag, AppOptions &options)
 {
     TGAMMA prev_gamma1 = modelParams.gamma1;
@@ -956,7 +956,7 @@ bool HMM<TGAMMA, TBIN>::baumWelch(ModelParams<TGAMMA, TBIN> &modelParams, CharSt
             std::cerr << "ERROR: Could not compute forward-backward algorithm! " << std::endl;
             return false;
         }
-        
+
         std::cout << "                        updateDensityParams() " << std::endl;
 
         if (learnTag == "LEARN_BINOMIAL")
@@ -981,13 +981,13 @@ bool HMM<TGAMMA, TBIN>::baumWelch(ModelParams<TGAMMA, TBIN> &modelParams, CharSt
             }
 
         }
-        
-        if (learnTag == "LEARN_GAMMA" && checkConvergence(modelParams.gamma1, prev_gamma1, options) && checkConvergence(modelParams.gamma2, prev_gamma2, options) )             
+
+        if (learnTag == "LEARN_GAMMA" && checkConvergence(modelParams.gamma1, prev_gamma1, options) && checkConvergence(modelParams.gamma2, prev_gamma2, options) )
         {
             std::cout << " **** Convergence ! **** " << std::endl;
             break;
         }
-        else if (learnTag != "LEARN_GAMMA" && checkConvergence(modelParams.bin1, prev_bin1, options) && checkConvergence(modelParams.bin2, prev_bin2, options) )             
+        else if (learnTag != "LEARN_GAMMA" && checkConvergence(modelParams.bin1, prev_bin1, options) && checkConvergence(modelParams.bin2, prev_bin2, options) )
         {
             std::cout << " **** Convergence ! **** " << std::endl;
             break;
@@ -999,7 +999,7 @@ bool HMM<TGAMMA, TBIN>::baumWelch(ModelParams<TGAMMA, TBIN> &modelParams, CharSt
 
         myPrint(modelParams.gamma1);
         myPrint(modelParams.gamma2);
-        
+
         std::cout << "*** Transition probabilitites ***" << std::endl;
         for (unsigned k_1 = 0; k_1 < this->K; ++k_1)
         {
@@ -1019,7 +1019,7 @@ bool HMM<TGAMMA, TBIN>::baumWelch(ModelParams<TGAMMA, TBIN> &modelParams, CharSt
 }
 
 
-template<typename TGAMMA, typename TBIN> 
+template<typename TGAMMA, typename TBIN>
 bool HMM<TGAMMA, TBIN>::applyParameters(ModelParams<TGAMMA, TBIN> &modelParams, AppOptions &options)
 {
     if (!computeEmissionProbs(modelParams, false, options))
@@ -1038,8 +1038,8 @@ bool HMM<TGAMMA, TBIN>::applyParameters(ModelParams<TGAMMA, TBIN> &modelParams, 
 
 
 template<typename TGAMMA, typename TBIN>
-void HMM<TGAMMA, TBIN>::posteriorDecoding(String<String<String<__uint8> > > &states)
-{ 
+void HMM<TGAMMA, TBIN>::posteriorDecoding(String<String<String<uint8_t> > > &states)
+{
     for (unsigned s = 0; s < 2; ++s)
     {
         resize(states[s], length(this->setObs[s]), Exact());
@@ -1068,8 +1068,8 @@ void HMM<TGAMMA, TBIN>::posteriorDecoding(String<String<String<__uint8> > > &sta
 }
 
 
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
-                         String<String<Observations> > &setObs, 
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > &states,
+                         String<String<Observations> > & /*setObs*/,
                          String<Data> &data_replicates,
                          String<ModelParams<GAMMA_REG, ZTBIN> > &modelParams)
 {
@@ -1099,8 +1099,8 @@ void rmBoarderArtifacts2(String<String<String<__uint8> > > &states,
     }
 }
 
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
-                         String<String<Observations> > &setObs, 
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > &states,
+                         String<String<Observations> > & /*setObs*/,
                          String<Data> &data_replicates,
                          String<ModelParams<GAMMA_REG, ZTBIN_REG> > &modelParams)
 {
@@ -1131,23 +1131,23 @@ void rmBoarderArtifacts2(String<String<String<__uint8> > > &states,
 }
 
 // do nothing
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
-                         String<String<Observations> > &setObs, 
-                         String<Data> &data_replicates, 
-                         String<ModelParams<GAMMA, ZTBIN> > &modelParams){}
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > & /*states*/,
+                         String<String<Observations> > & /*setObs*/,
+                         String<Data> & /*data_replicates*/,
+                         String<ModelParams<GAMMA, ZTBIN> > & /*modelParams*/){}
 
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
-                         String<String<Observations> > &setObs, 
-                         String<Data> &data_replicates, 
-                         String<ModelParams<GAMMA, ZTBIN_REG> > &modelParams){}
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > & /*states*/,
+                         String<String<Observations> > & /*setObs*/,
+                         String<Data> & /*data_replicates*/,
+                         String<ModelParams<GAMMA, ZTBIN_REG> > & /*modelParams*/){}
 
 
-// for GLM with input signal: 
+// for GLM with input signal:
 // when using free gamma shapes, i.e. gamma1.k can be > gamma2.k
 // make sure sites with fragment coverage (KDE) below gamma1.mean are classified as 'non-enriched'
 template<typename TGAMMA, typename TBIN>
-void HMM<TGAMMA, TBIN>::rmBoarderArtifacts(String<String<String<__uint8> > > &states, 
-                                           String<Data> &data_replicates, 
+void HMM<TGAMMA, TBIN>::rmBoarderArtifacts(String<String<String<uint8_t> > > &states,
+                                           String<Data> &data_replicates,
                                            String<ModelParams<TGAMMA, TBIN> > &modelParams)
 {
     rmBoarderArtifacts2(states, this->setObs, data_replicates, modelParams);
@@ -1163,7 +1163,7 @@ double getCrosslinkSiteScore(double postProb0, double postProb1, double postProb
     else if (score_type == 2)   // log(3/1) "enrichment focussed"
     {
         return (double)log(postProb3/std::max(postProb1, DBL_MIN));
-    }                  
+    }
     else if (score_type == 3)   // log(enriched/non-enriched) + log(crosslinked/non-crosslinked) "balanced"
     {
         return ((double)log((postProb2 + postProb3)/std::max(postProb0 + postProb1, DBL_MIN)) + (double)log((postProb1 + postProb3)/std::max(postProb0 + postProb2, DBL_MIN)));
@@ -1181,10 +1181,10 @@ double getCrosslinkSiteScore(double postProb0, double postProb1, double postProb
 
 void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                  Data &data,
-                 FragmentStore<> &store, 
+                 FragmentStore<> &store,
                  unsigned contigId,
-                 AppOptions &options)          
-{ 
+                 AppOptions &options)
+{
     for (unsigned s = 0; s < 2; ++s)
     {
         for (unsigned i = 0; i < length(data.setObs[s]); ++i)    // data.states[s]
@@ -1208,7 +1208,7 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     }
                     else                 // '-'-strand;
                     {
-                        if (!options.crosslinkAtTruncSite) 
+                        if (!options.crosslinkAtTruncSite)
                             record.beginPos = length(store.contigStore[contigId].seq) - (t + data.setPos[s][i]);
                         else
                             record.beginPos = length(store.contigStore[contigId].seq) - (t + data.setPos[s][i]) - 1;
@@ -1219,13 +1219,13 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     std::stringstream ss;
                     ss << (int)data.states[s][i][t];
                     record.name = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
 
                     ss << getCrosslinkSiteScore(data.statePosteriors[s][0][i][t], data.statePosteriors[s][1][i][t], data.statePosteriors[s][2][i][t], data.statePosteriors[s][3][i][t], options.score_type);
                     record.score = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
                     if (s == 0)
                         record.strand = '+';
                     else
@@ -1241,7 +1241,7 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     ss << ";";
 
                     ss << (double)data.statePosteriors[s][3][i][t];
-                    ss << ";"; 
+                    ss << ";";
                     if (options.useCov_RPKM)
                         ss << (double)data.setObs[s][i].rpkms[t];
                     else
@@ -1251,8 +1251,8 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     ss << ";";
 
                     record.data = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
 
                     appendValue(bedRecords_sites, record);
                 }
@@ -1272,7 +1272,7 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     }
                     else                 // '-'-strand;
                     {
-                        if (!options.crosslinkAtTruncSite) 
+                        if (!options.crosslinkAtTruncSite)
                             record.beginPos = length(store.contigStore[contigId].seq) - (t + data.setPos[s][i]);
                         else
                             record.beginPos = length(store.contigStore[contigId].seq) - (t + data.setPos[s][i]) - 1;
@@ -1281,17 +1281,17 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     }
 
                     std::stringstream ss;
-                    ss << (int)0;           // assign 'non-enriched + non-crosslink' 
+                    ss << (int)0;           // assign 'non-enriched + non-crosslink'
                     record.name = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
 
-                    // log posterior prob. ratio score                   
+                    // log posterior prob. ratio score
                     ss << "NA";
 
                     record.score = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
                     if (s == 0)
                         record.strand = '+';
                     else
@@ -1307,7 +1307,7 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     ss << ";";
 
                     ss << "NA";
-                    ss << ";"; 
+                    ss << ";";
                     if (options.useCov_RPKM)
                         ss << (double)data.setObs[s][i].rpkms[t];
                     else
@@ -1317,8 +1317,8 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     ss << ";";
 
                     record.data = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
 
                     appendValue(bedRecords_sites, record);
                 }
@@ -1349,13 +1349,13 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     std::stringstream ss;
                     ss << (int)data.states[s][i][t];
                     record.name = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
 
                     ss << getCrosslinkSiteScore(data.statePosteriors[s][0][i][t], data.statePosteriors[s][1][i][t], data.statePosteriors[s][2][i][t], data.statePosteriors[s][3][i][t], options.score_type);
                     record.score = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
                     if (s == 0)
                         record.strand = '+';
                     else
@@ -1367,11 +1367,11 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
                     ss << "score_UC=" << getCrosslinkSiteScore(data.statePosteriors[s][0][i][t], data.statePosteriors[s][1][i][t], data.statePosteriors[s][2][i][t], data.statePosteriors[s][3][i][t], 0) << "]";
 
                     record.data = ss.str();
-                    ss.str("");  
-                    ss.clear();  
+                    ss.str("");
+                    ss.clear();
 
                     appendValue(bedRecords_sites, record);
-                }               
+                }
             }
         }
     }
@@ -1380,10 +1380,10 @@ void writeStates(String<BedRecord<Bed6> > &bedRecords_sites,
 
 void writeRegions(String<BedRecord<Bed6> > &bedRecords_regions,
                  Data &data,
-                 FragmentStore<> &store, 
+                 FragmentStore<> &store,
                  unsigned contigId,
-                 AppOptions &options)          
-{ 
+                 AppOptions &options)
+{
     for (unsigned s = 0; s < 2; ++s)
     {
         for (unsigned i = 0; i < length(data.states[s]); ++i)
@@ -1400,7 +1400,7 @@ void writeRegions(String<BedRecord<Bed6> > &bedRecords_regions,
 			                record.beginPos = t + data.setPos[s][i] - 1;
                         else
 			                record.beginPos = t + data.setPos[s][i];
-                        
+
                         record.endPos = record.beginPos + 1;
                     }
                     else
@@ -1431,17 +1431,17 @@ void writeRegions(String<BedRecord<Bed6> > &bedRecords_regions,
                             if (s == 0)         // crosslink sites (not truncation site)
                             {
                                 if (!options.crosslinkAtTruncSite)
-                                    record.endPos = t + data.setPos[s][i];  
+                                    record.endPos = t + data.setPos[s][i];
                                 else
-                                    record.endPos = t + data.setPos[s][i] + 1;  
+                                    record.endPos = t + data.setPos[s][i] + 1;
                             }
                             else
                             {
-                                if (!options.crosslinkAtTruncSite)                                
+                                if (!options.crosslinkAtTruncSite)
                                     record.beginPos = length(store.contigStore[contigId].seq) - (t + data.setPos[s][i]);
                                 else
                                     record.beginPos = length(store.contigStore[contigId].seq) - (t + data.setPos[s][i]) - 1;
-                            }                
+                            }
 
                             score = getCrosslinkSiteScore(data.statePosteriors[s][0][i][t], data.statePosteriors[s][1][i][t], data.statePosteriors[s][2][i][t], data.statePosteriors[s][3][i][t], options.score_type);
                             scoresSum += score;
@@ -1450,23 +1450,23 @@ void writeRegions(String<BedRecord<Bed6> > &bedRecords_regions,
                         }
                     }
 
-                    std::stringstream ss; 
+                    std::stringstream ss;
                     ss << scoresSum;
                     record.score = ss.str();
-                    ss.str("");  
-                    ss.clear(); 
+                    ss.str("");
+                    ss.clear();
                     record.name = ss_indivScores.str();
-                    ss_indivScores.str("");  
-                    ss_indivScores.clear(); 
-                    
+                    ss_indivScores.str("");
+                    ss_indivScores.clear();
+
                     appendValue(bedRecords_regions, record);
-                }      
+                }
             }
         }
     }
 }
 
-  
+
 template<typename TGAMMA, typename TBIN>
 void myPrint(HMM<TGAMMA, TBIN> &hmm)
 {
