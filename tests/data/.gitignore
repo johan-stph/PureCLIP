@@ -1,0 +1,3 @@
+# Generated test data — not committed.
+# Committed test data (synthetic/ + chrM/) is in separate directories.
+*.sam

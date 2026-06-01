@@ -37,18 +37,21 @@ bool parse_bamRegion(TContigObservations &contigObservationsF, TContigObservatio
     if (options.verbosity >= 2)
         std::cout << "Parse BAM region " << std::endl;
  
-    int jump_beginPos = 0;
+    // SeqAn 2.5.3 jumpToRegion uses 1-based closed coordinates.
+    // Pass [1, contigLength] to scan the whole chromosome.
+    uint32_t jump_beginPos = 1u;
+    uint32_t jump_endPos   = static_cast<uint32_t>(length(contigObservationsF.truncCounts));
     // Jump the BGZF stream to this position.
     bool hasAlignments = false;
-    if (!jumpToRegion(inFile, hasAlignments, rID, jump_beginPos, length(contigObservationsF.truncCounts)-1, baiIndex))
+    if (!jumpToRegion(inFile, hasAlignments, rID, jump_beginPos, jump_endPos, baiIndex))
     {
-        std::cerr << "ERROR: Could not jump to " << jump_beginPos << ":" << (length(contigObservationsF.truncCounts)-1) << "\n";
+        std::cerr << "ERROR: Could not jump to " << jump_beginPos << ":" << jump_endPos << "\n";
         return false;
     }
     if (!hasAlignments)
     {
         if (options.verbosity >= 2)
-            std::cout << "WARNING: no alignments here " << jump_beginPos << ":" << (length(contigObservationsF.truncCounts)-1) << "\n";
+            std::cout << "WARNING: no alignments here " << jump_beginPos << ":" << jump_endPos << "\n";
         return false;  
     }
 
@@ -93,13 +96,15 @@ bool parse_bamRegion(TTruncCounts &truncCounts, TBamIn &inFile, TBai &baiIndex, 
 {
     // Jump the BGZF stream to this position.
     bool hasAlignments = false;
-    int jump_beginPos;
+    // SeqAn 2.5.3 jumpToRegion uses 1-based coordinates; clamp to [1, ...].
+    // beginPos/endPos are 0-based internally; add 1 to convert, guard underflow.
+    uint32_t jump_beginPos;
     if (isForward)
-        jump_beginPos = beginPos;
+        jump_beginPos = beginPos + 1u;
     else
-        jump_beginPos = beginPos - 100;
+        jump_beginPos = (beginPos > 100u) ? (beginPos - 100u + 1u) : 1u;
 
-    if (!jumpToRegion(inFile, hasAlignments, rID, jump_beginPos, (endPos+1000), baiIndex))
+    if (!jumpToRegion(inFile, hasAlignments, rID, jump_beginPos, (endPos + 1001u), baiIndex))
     {
         std::cerr << "ERROR: Could not jump to " << beginPos << ":" << endPos << "\n";
         return false;
