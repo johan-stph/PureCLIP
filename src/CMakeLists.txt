@@ -73,6 +73,10 @@ find_package (GSL REQUIRED)
 # Build Setup
 # ----------------------------------------------------------------------------
 
+# SeqAn defaults BGZF I/O to 16 threads; PureCLIP manages its own
+# threading via -nt and requires serial BAM access for correct results.
+add_definitions (-DSEQAN_BGZF_NUM_THREADS=1)
+
 # Add include directories.
 include_directories (SYSTEM ${SEQAN_INCLUDE_DIRS})
 include_directories (SYSTEM ${GSL_INCLUDE_DIRS})
