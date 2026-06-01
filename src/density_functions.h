@@ -58,8 +58,8 @@ public:
     GAMMA() {}
 
     long double getDensity(double const &x);
-    bool updateThetaAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
-    bool updateThetaAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
+    bool updateThetaAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options, bool subsample = false); 
+    bool updateThetaAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options, bool subsample = false); 
 
     double b0;   // scale parameter
     double k;       // shape parameter 
@@ -74,7 +74,8 @@ long double my_GSL_X_GAMMA_forK(const gsl_vector * x, long double const & k,
         long double const & tp,
         String<String<String<double> > > const& statePosteriors,
         String<String<Observations> > & setObs,  
-        AppOptions const&options)
+        AppOptions const&options,
+        bool subsample = false)
 {       
     const long double b0 = gsl_vector_get (x, 1);   //theta
     long double pred = exp(b0); //k*theta;
@@ -87,6 +88,7 @@ long double my_GSL_X_GAMMA_forK(const gsl_vector * x, long double const & k,
     }
 
     long double f = 0.0;
+    const unsigned stride = subsample ? 3u : 1u;
     for (unsigned s = 0; s < 2; ++s)
     {
         String<long double> f_S;
@@ -94,7 +96,7 @@ long double my_GSL_X_GAMMA_forK(const gsl_vector * x, long double const & k,
 #if HMM_PARALLEL
         SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
 #endif  
-            for (unsigned i = 0; i < length(setObs[s]); ++i)
+            for (unsigned i = 0; i < length(setObs[s]); i += stride)
             {
                 for (unsigned t = 0; t < setObs[s][i].length(); ++t)
                 {    
@@ -108,10 +110,11 @@ long double my_GSL_X_GAMMA_forK(const gsl_vector * x, long double const & k,
                     }
                 }
             }
-        // combine results from threads
+        // combine results from threads; scale up to approximate full-dataset LL
         for (unsigned i = 0; i < length(setObs[s]); ++i)
             f += f_S[i];
     }
+    if (subsample) f *= 3.0L;
     return  (-f);  
 }
 
@@ -125,10 +128,12 @@ struct Fct_GSL_X_GAMMA
                                   double const & maxK_,
                                   double & penalty_, 
                                   String<String<String<double> > > const& statePosteriors_,  String<String<Observations> > &setObs_, 
-                                  AppOptions const&options_) : tp(tp_),
+                                  AppOptions const&options_,
+                                  bool subsample_ = false) : tp(tp_),
                                                                minK(minK_),
                                                                maxK(maxK_),
                                                                penalty(penalty_),
+                                                               subsample(subsample_),
                                                                statePosteriors(statePosteriors_), 
                                                                setObs(setObs_), 
                                                                options(options_)
@@ -143,13 +148,13 @@ struct Fct_GSL_X_GAMMA
 
         if (k >= minK && k <= maxK)                                                                 // if valid k
         {
-            f = my_GSL_X_GAMMA_forK(x, k, tp, statePosteriors, setObs, options);
+            f = my_GSL_X_GAMMA_forK(x, k, tp, statePosteriors, setObs, options, subsample);
         }
         else if (k < minK)
         {
             //std::cout << "k < kmin " << k << std::endl;
-            long double f_c = my_GSL_X_GAMMA_forK(x, minK, tp, statePosteriors, setObs, options);                // f value at constraint
-            long double f_cn = my_GSL_X_GAMMA_forK(x, (minK+0.001), tp, statePosteriors, setObs, options);       // f value inside the constraints with distance of 0.001
+            long double f_c = my_GSL_X_GAMMA_forK(x, minK, tp, statePosteriors, setObs, options, subsample);                // f value at constraint
+            long double f_cn = my_GSL_X_GAMMA_forK(x, (minK+0.001), tp, statePosteriors, setObs, options, subsample);       // f value inside the constraints with distance of 0.001
             long double d = minK - k;
 
             // descending towards constraint:
@@ -158,7 +163,7 @@ struct Fct_GSL_X_GAMMA
             if (f_cn - f_c > 0.0 && (minK + d <= maxK))
             {
                 //std::cout << "k < kmin " << k << " descending towards constraint" << std::endl;
-                f = my_GSL_X_GAMMA_forK(x, (minK+d), tp, statePosteriors, setObs, options);    // NOTE: f is already negative
+                f = my_GSL_X_GAMMA_forK(x, (minK+d), tp, statePosteriors, setObs, options, subsample);    // NOTE: f is already negative
                 f += pow(d*(-f)*penalty, 2.0);                                                      // penalty depending on distance to constraint -> prevent simplex from moving outside of constraints   
             }
             // ascending towards constraint:
@@ -166,14 +171,14 @@ struct Fct_GSL_X_GAMMA
             else // if (f_cn - f_c >= 0)
             {
                 //std::cout << "k < kmin " << k << " ascending towards constraint" << std::endl;
-                f = my_GSL_X_GAMMA_forK(x, minK, tp, statePosteriors, setObs, options);
+                f = my_GSL_X_GAMMA_forK(x, minK, tp, statePosteriors, setObs, options, subsample);
                 f += pow(d*(-f)*penalty, 2.0);
             }
         }
         else                                                                                                    //if (k > maxK)
         {
-            long double f_c = my_GSL_X_GAMMA_forK(x, maxK, tp, statePosteriors, setObs, options);                // f value at constraint
-            long double f_cn = my_GSL_X_GAMMA_forK(x, (maxK-0.001), tp, statePosteriors, setObs, options);       // f value inside the constraints with distance of 0.001
+            long double f_c = my_GSL_X_GAMMA_forK(x, maxK, tp, statePosteriors, setObs, options, subsample);                // f value at constraint
+            long double f_cn = my_GSL_X_GAMMA_forK(x, (maxK-0.001), tp, statePosteriors, setObs, options, subsample);       // f value inside the constraints with distance of 0.001
             long double d = k - maxK;
 
             // descending towards constraint:
@@ -181,14 +186,14 @@ struct Fct_GSL_X_GAMMA
             // only if mirror point > minK!
             if (f_cn - f_c > 0.0 && (maxK - d >= minK))
             {
-                f = my_GSL_X_GAMMA_forK(x, (maxK-d), tp, statePosteriors, setObs, options);
+                f = my_GSL_X_GAMMA_forK(x, (maxK-d), tp, statePosteriors, setObs, options, subsample);
                 f += pow(d*(-f)*penalty, 2.0);
             }
             // ascending towards constraint:
             // -> use function values at constraint line - penalty
             else // if (f_cn - f_c >= 0)
             {
-                f = my_GSL_X_GAMMA_forK(x, maxK, tp, statePosteriors, setObs, options); 
+                f = my_GSL_X_GAMMA_forK(x, maxK, tp, statePosteriors, setObs, options, subsample); 
                 f += pow(d*(-f)*penalty, 2.0);
             } 
         }
@@ -200,6 +205,7 @@ private:
     long double minK;
     long double maxK;
     long double penalty;
+    bool subsample;
     String<String<String<double> > > statePosteriors;
     String<String<Observations> > & setObs;
     AppOptions options;
@@ -349,7 +355,7 @@ bool callGSL_simplex2_fixK(int &status,
             break;
 
         size = gsl_multimin_fminimizer_size (s);
-        status = gsl_multimin_test_size (size, 1e-6);
+        status = gsl_multimin_test_size (size, 1e-4);
 
         if (options.verbosity >= 2)
         {
@@ -378,7 +384,8 @@ bool callGSL_simplex2(double &fval, double &tp, double &k, double &b0,
                   String<String<String<double> > > &statePosteriors, 
                   String<String<Observations> > &setObs, 
                   double &kMin, double &kMax,
-                  AppOptions const& options)
+                  AppOptions const& options,
+                  bool subsample = false)
 {
     if (options.verbosity >= 2) 
         std::cout << "Call GSL multimin solver nmsimplex2 ..." << std::endl;
@@ -397,7 +404,7 @@ bool callGSL_simplex2(double &fval, double &tp, double &k, double &b0,
     gsl_multimin_function f;
 
     // instantiation of functor with all fixed params
-    Fct_GSL_X_GAMMA fct(tp, kMin, kMax, penalty, statePosteriors, setObs, options);
+    Fct_GSL_X_GAMMA fct(tp, kMin, kMax, penalty, statePosteriors, setObs, options, subsample);
 
     /* Set initial step sizes to 0.0001 */
     gsl_vector *ss = gsl_vector_alloc (n);
@@ -431,7 +438,7 @@ bool callGSL_simplex2(double &fval, double &tp, double &k, double &b0,
         break;
 
         size = gsl_multimin_fminimizer_size (s);
-        status = gsl_multimin_test_size (size, 1e-6);
+        status = gsl_multimin_test_size (size, 1e-4);
 
         if (options.verbosity >= 2)
         {
@@ -491,18 +498,20 @@ bool callGSL_simplex2(double &fval, double &tp, double &k, double &b0,
 bool GAMMA::updateThetaAndK(String<String<String<double> > > &statePosteriors, 
                     String<String<Observations> > &setObs, 
                     double &kMin, double &kMax,
-                    AppOptions const&options)
+                    AppOptions const&options,
+                    bool subsample)
 {
     // use multidimensional simplex2
     double fval = DBL_MAX;  // note: f was negated before, we minimze
-    return callGSL_simplex2(fval, this->tp, this->k, this->b0, statePosteriors, setObs, kMin, kMax, options);    
+    return callGSL_simplex2(fval, this->tp, this->k, this->b0, statePosteriors, setObs, kMin, kMax, options, subsample);    
 }
 
 bool GAMMA::updateThetaAndK(String<String<double> > &startSet,
                     String<String<String<double> > > &statePosteriors, 
                     String<String<Observations> > &setObs, 
                     double &kMin, double &kMax,
-                    AppOptions const&options)
+                    AppOptions const&options,
+                    bool subsample)
 {
     std::cout << "updateThetaAndK... kMax: " << kMax << std::endl;
 
@@ -518,7 +527,7 @@ bool GAMMA::updateThetaAndK(String<String<double> > &startSet,
     {
         double k = startSet[i][0];  
         double b0 = startSet[i][1];
-        if(!callGSL_simplex2(fvals[i], this->tp, k, b0, statePosteriors, setObs, kMin, kMax, options))
+        if(!callGSL_simplex2(fvals[i], this->tp, k, b0, statePosteriors, setObs, kMin, kMax, options, subsample))
         {
             std::cout << "ERROR: during simplex optimization!" << std::endl;
             return false;
