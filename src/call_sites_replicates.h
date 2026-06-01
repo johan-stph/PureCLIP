@@ -358,7 +358,7 @@ void setUp(String<Data> &data_replicates)
 
     unsigned no_t = 10;
     Observations obsShort;
-    String<__uint16> truncs;
+    String<uint16_t> truncs;
     resize(truncs, 100, 0);    
     obsShort.truncCounts = infix(truncs, 10, 20);
     resize(obsShort.nEstimates, no_t, 0);

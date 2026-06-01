@@ -42,7 +42,7 @@ class HMM {
 
 public:
 
-    __uint8                                 K;                  // no. of sates
+    uint8_t                                 K;                  // no. of sates
     String<String<String<long double> > >   initProbs;          // initial probabilities
 
     String<String<Observations> >           & setObs;          // workaround for partial specialization
@@ -103,8 +103,8 @@ public:
     bool updateDensityParams(ModelParams<TGAMMA, TBIN> &modelParams, AppOptions &options);
     bool baumWelch(ModelParams<TGAMMA, TBIN> &modelParams, CharString learnTag, AppOptions &options);
     bool applyParameters(ModelParams<TGAMMA, TBIN> &modelParams, AppOptions &/*options*/);
-    void posteriorDecoding(String<String<String<__uint8> > > &states);
-    void rmBoarderArtifacts(String<String<String<__uint8> > > &states, String<Data> &data_replicates, String<ModelParams<TGAMMA, TBIN> > &modelParams);
+    void posteriorDecoding(String<String<String<uint8_t> > > &states);
+    void rmBoarderArtifacts(String<String<String<uint8_t> > > &states, String<Data> &data_replicates, String<ModelParams<TGAMMA, TBIN> > &modelParams);
 
     // for each F/R,interval,t, state ....
     String<String<String<String<double> > > > eProbs;           // emission/observation probabilities  P(Y_t | S_t) -> precompute for each t given Y_t = (C_t, T_t) !!!
@@ -1038,7 +1038,7 @@ bool HMM<TGAMMA, TBIN>::applyParameters(ModelParams<TGAMMA, TBIN> &modelParams, 
 
 
 template<typename TGAMMA, typename TBIN>
-void HMM<TGAMMA, TBIN>::posteriorDecoding(String<String<String<__uint8> > > &states)
+void HMM<TGAMMA, TBIN>::posteriorDecoding(String<String<String<uint8_t> > > &states)
 { 
     for (unsigned s = 0; s < 2; ++s)
     {
@@ -1068,7 +1068,7 @@ void HMM<TGAMMA, TBIN>::posteriorDecoding(String<String<String<__uint8> > > &sta
 }
 
 
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > &states, 
                          String<String<Observations> > &setObs, 
                          String<Data> &data_replicates,
                          String<ModelParams<GAMMA_REG, ZTBIN> > &modelParams)
@@ -1099,7 +1099,7 @@ void rmBoarderArtifacts2(String<String<String<__uint8> > > &states,
     }
 }
 
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > &states, 
                          String<String<Observations> > &setObs, 
                          String<Data> &data_replicates,
                          String<ModelParams<GAMMA_REG, ZTBIN_REG> > &modelParams)
@@ -1131,12 +1131,12 @@ void rmBoarderArtifacts2(String<String<String<__uint8> > > &states,
 }
 
 // do nothing
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > &states, 
                          String<String<Observations> > &setObs, 
                          String<Data> &data_replicates, 
                          String<ModelParams<GAMMA, ZTBIN> > &modelParams){}
 
-void rmBoarderArtifacts2(String<String<String<__uint8> > > &states, 
+void rmBoarderArtifacts2(String<String<String<uint8_t> > > &states, 
                          String<String<Observations> > &setObs, 
                          String<Data> &data_replicates, 
                          String<ModelParams<GAMMA, ZTBIN_REG> > &modelParams){}
@@ -1146,7 +1146,7 @@ void rmBoarderArtifacts2(String<String<String<__uint8> > > &states,
 // when using free gamma shapes, i.e. gamma1.k can be > gamma2.k
 // make sure sites with fragment coverage (KDE) below gamma1.mean are classified as 'non-enriched'
 template<typename TGAMMA, typename TBIN>
-void HMM<TGAMMA, TBIN>::rmBoarderArtifacts(String<String<String<__uint8> > > &states, 
+void HMM<TGAMMA, TBIN>::rmBoarderArtifacts(String<String<String<uint8_t> > > &states, 
                                            String<Data> &data_replicates, 
                                            String<ModelParams<TGAMMA, TBIN> > &modelParams)
 {

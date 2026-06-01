@@ -98,7 +98,18 @@ set (PURECLIP_COMPILE_DEFS
 # split them before passing to target_compile_options.
 separate_arguments (SEQAN_CXX_FLAGS_LIST    UNIX_COMMAND "${SEQAN_CXX_FLAGS}")
 separate_arguments (OpenMP_CXX_FLAGS_LIST   UNIX_COMMAND "${OpenMP_CXX_FLAGS}")
-set (PURECLIP_COMPILE_OPTIONS ${SEQAN_CXX_FLAGS_LIST} ${OpenMP_CXX_FLAGS_LIST})
+
+# Warnings: enable a broad set for all builds. Treated as errors only when
+# the caller explicitly sets -DWERROR=ON (used by the strict CI job).
+set (PURECLIP_WARNING_FLAGS -Wall -Wextra -Wpedantic)
+if (WERROR)
+    list (APPEND PURECLIP_WARNING_FLAGS -Werror)
+endif()
+
+set (PURECLIP_COMPILE_OPTIONS
+    ${SEQAN_CXX_FLAGS_LIST}
+    ${OpenMP_CXX_FLAGS_LIST}
+    ${PURECLIP_WARNING_FLAGS})
 
 set (PURECLIP_INCLUDE_DIRS
     ${SEQAN_INCLUDE_DIRS}
