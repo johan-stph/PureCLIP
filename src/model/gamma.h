@@ -1,3 +1,4 @@
+#include "omp_schedule.h"
 // ======================================================================
 // PureCLIP: capturing target-specific protein-RNA interaction footprints
 // ======================================================================
@@ -104,7 +105,7 @@ Float my_GSL_X_GAMMA_forK(const gsl_vector * x, Float const & k,
         String<Float> f_S;
         resize(f_S, length(setObs[s]), 0.0, Exact());
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
+        SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(options.numThreads)) 
 #endif  
             for (unsigned i = 0; i < length(setObs[s]); i += stride)
             {
@@ -252,7 +253,7 @@ struct Fct_GSL_X_GAMMA_fixK
             String<Float> f_S;
             resize(f_S, length(setObs[s]), 0.0, Exact());
 #if HMM_PARALLEL
-            SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1) num_threads(options.numThreads)) 
+            SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR num_threads(options.numThreads)) 
 #endif  
             for (unsigned i = 0; i < length(setObs[s]); ++i)
             {

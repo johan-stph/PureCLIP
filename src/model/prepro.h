@@ -528,7 +528,7 @@ void estimateTransitions(String<String<Float> > &initTrans,
    
         for (unsigned k_2 = 0; k_2 < 4; ++k_2)
         {
-            initTrans[k_1][k_2] = (double)transFreqs[k_1][k_2] / (double)sum;     
+            initTrans[k_1][k_2] = static_cast<double>(transFreqs[k_1][k_2]) / static_cast<double>(sum);     
         }
     }
  

@@ -1,3 +1,4 @@
+#include "omp_schedule.h"
 // ======================================================================
 // PureCLIP: capturing target-specific protein-RNA interaction footprints
 // ======================================================================
@@ -284,12 +285,20 @@ Result<void> HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &
     modelParams.gamma1.invalidateCache();
     modelParams.gamma2.invalidateCache();
     bool stop = false;
-    for (unsigned s = 0; s < 2; ++s)
-    {
+    // ── Perf: merged two sequential parallel-for loops into one collapsed loop.
+    // Halves barrier count vs the original two-loop pattern.  The schedule macro
+    // (PURECLIP_OMP_PARALLEL_FOR) selects guided or dynamic,1 at build time.
+    // No output change beyond the Float precision shift documented in types.h.
+    unsigned nFwd = length(this->setObs[0]);
+    unsigned nRev = length(this->setObs[1]);
+    unsigned nTotal = nFwd + nRev;
 #if HMM_PARALLEL
-        SEQAN_OMP_PRAGMA(parallel for schedule(dynamic, 1))
+    SEQAN_OMP_PRAGMA(PURECLIP_OMP_PARALLEL_FOR)
 #endif
-        for (unsigned i = 0; i < length(this->setObs[s]); ++i)
+    for (unsigned idx = 0; idx < nTotal; ++idx)
+    {
+        unsigned s = (idx < nFwd) ? 0u : 1u;
+        unsigned i = (idx < nFwd) ? idx : (idx - nFwd);
         {
             bool discardInterval = false;
             for (unsigned t = 0; t < this->setObs[s][i].length(); ++t)
@@ -494,7 +503,7 @@ Result<void> HMM<TGAMMA, TBIN>::computeStatePosteriorsFBupdateTrans(AppOptions &
                 resize(p_i[k_1], this->K, Exact());
             }
 
-            SEQAN_OMP_PRAGMA(for schedule(dynamic, 1))
+            SEQAN_OMP_PRAGMA(PURECLIP_OMP_FOR_NOWAIT)
             for (unsigned i = 0; i < length(this->setObs[s]); ++i)
 #else
             String<String<Float> > alphas_1;
@@ -677,7 +686,7 @@ Result<void> HMM<TGAMMA, TBIN>::computeStatePosteriorsFB(AppOptions &options)
             for (unsigned t = 0; t < maxT; ++t)
                 resize(betas_1[t], this->K, Exact());
 
-            SEQAN_OMP_PRAGMA(for schedule(dynamic, 1))
+            SEQAN_OMP_PRAGMA(PURECLIP_OMP_FOR_NOWAIT)
             for (unsigned i = 0; i < length(this->setObs[s]); ++i)
 #else
         {

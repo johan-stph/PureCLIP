@@ -127,10 +127,19 @@ endif()
 # SeqAn defaults BGZF I/O to 16 threads; PureCLIP manages its own
 # threading via -nt and requires serial BAM access for correct results.
 # This replicates the single change made in the original skrakau/seqan fork.
+#
+# PURECLIP_OMP_SCHEDULE: OpenMP loop schedule.
+#   "guided"    — faster, fewer barriers (default)
+#   "dynamic,1" — original PureCLIP behavior, matches published output
+set (PURECLIP_OMP_SCHEDULE "guided" CACHE STRING "OpenMP schedule (guided or dynamic,1)")
+
 set (PURECLIP_COMPILE_DEFS
     SEQAN_BGZF_NUM_THREADS=1
+    PURECLIP_OMP_SCHEDULE=${PURECLIP_OMP_SCHEDULE}
     ${SEQAN_DEFINITIONS}
 )
+
+message(STATUS "OpenMP schedule: ${PURECLIP_OMP_SCHEDULE}")
 
 # target_compile_options requires a proper cmake list (one flag per element).
 # Both SEQAN_CXX_FLAGS and OpenMP_CXX_FLAGS are space-separated strings so we
@@ -177,6 +186,7 @@ endif()
 add_executable (pureclip
     pureclip.cpp
     util.h
+    omp_schedule.h
     toml.hpp
     cli/cli.h
     cli/config.h

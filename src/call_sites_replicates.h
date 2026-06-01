@@ -229,7 +229,7 @@ HMM<TGAMMA, TBIN> merge_HMMs(String<HMM<TGAMMA, TBIN> > &hmms_replicates, String
                     for (unsigned rep = 0; rep < length(hmms_replicates); ++rep)
                         sum += hmms_replicates[rep].initProbs[s][i][k];                     // TODO use position-specific post. probs. instead?
 
-                    mergedHmm.initProbs[s][i][k] = sum/(double)length(hmms_replicates);
+                    mergedHmm.initProbs[s][i][k] = sum / static_cast<double>(length(hmms_replicates));
                 }
             }
         }
@@ -243,7 +243,7 @@ HMM<TGAMMA, TBIN> merge_HMMs(String<HMM<TGAMMA, TBIN> > &hmms_replicates, String
                 for (unsigned rep = 0; rep < length(hmms_replicates); ++rep)
                     sum += hmms_replicates[rep].transMatrix[k_1][k_2];
 
-                mergedHmm.transMatrix[k_1][k_2] = sum/(double)(double)length(hmms_replicates);
+                mergedHmm.transMatrix[k_1][k_2] = sum / static_cast<double>(length(hmms_replicates));
             }
         }
         std::cout << "   set emission probs" << std::endl;            

@@ -104,7 +104,7 @@ Float ZTBIN::getDensity(unsigned const &k, unsigned const &n, AppOptions const& 
   
     // use boost implementation, maybe avoids overflow
     boost::math::binomial_distribution<Float> boostBin;
-    boostBin = boost::math::binomial_distribution<Float> ((int)n2, this->p); 
+    boostBin = boost::math::binomial_distribution<Float> (static_cast<int>(n2), this->p); 
 
     Float res = boost::math::pdf(boostBin, k2);
     if (std::isnan(res) || std::isinf(res))   // or any other error?
