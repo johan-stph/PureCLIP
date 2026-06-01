@@ -92,7 +92,7 @@ void ZTBIN::updateP(String<String<String<double> > > &statePosteriors,
 
 
 // k: diagnostic events (de); n: read counts (c)
-long double ZTBIN::getDensity(unsigned const &k, unsigned const &n, AppOptions const&options)
+long double ZTBIN::getDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
 {
     if (k == 0) return 0.0;     // zero-truncated
 

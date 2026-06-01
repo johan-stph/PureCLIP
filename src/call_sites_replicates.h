@@ -211,7 +211,7 @@ bool intersect_replicateIntervals(String<Data> &data_replicates)
 
 
 template<typename TGAMMA, typename TBIN>
-HMM<TGAMMA, TBIN> merge_HMMs(String<HMM<TGAMMA, TBIN> > &hmms_replicates, String<ModelParams<TGAMMA, TBIN> > &modelParams, AppOptions &options)
+HMM<TGAMMA, TBIN> merge_HMMs(String<HMM<TGAMMA, TBIN> > &hmms_replicates, String<ModelParams<TGAMMA, TBIN> > & /*modelParams*/, AppOptions &options)
 {
     HMM<TGAMMA, TBIN> mergedHmm = hmms_replicates[0];
 

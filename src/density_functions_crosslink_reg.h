@@ -177,7 +177,7 @@ void ZTBIN_REG::updateP(String<String<String<double> > > &statePosteriors,
 
 
 // k: diagnostic events (de); n: read counts (c)
-long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, long double const &pred, AppOptions const& options)
+long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, long double const &pred, AppOptions const& /*options*/)
 {
     if (k == 0) return 0.0;     // zero-truncated
 
@@ -198,7 +198,7 @@ long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, long dou
     return res * (long double)(1.0/(1.0 - pow((1.0 - (long double)pred), n2)));     // zero-truncated      TODO ???
 }
 
-long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, AppOptions const&options)
+long double ZTBIN_REG::getDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
 {
     if (k == 0) return 0.0;     // zero-truncated
 

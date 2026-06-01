@@ -51,7 +51,7 @@ namespace seqan2 {
             LogSumExp_lookupTable(unsigned size_, double minValue_) : size(size_), minValue(minValue_)
         {
             resize(lookupTable, size+1, Exact());
-            for(int i = 0; i <= size; ++i)
+            for(unsigned i = 0; i <= size; ++i)
                 lookupTable[i] = log1p(exp(i*(-minValue/size) + minValue));
             std::cout << "Created look-up table for values from " << ((0 * -minValue/size) + minValue) << " to " << ((size * -minValue/size) + minValue) << " with step size " << (-minValue/size) << " (size: " << size<< ")." << std::endl;
         }

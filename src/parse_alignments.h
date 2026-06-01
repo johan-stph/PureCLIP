@@ -122,7 +122,11 @@ bool parse_bamRegion(TTruncCounts &truncCounts, TBamIn &inFile, TBai &baiIndex, 
         // If we are on the next reference 
         if (bamRecord.rID == -1 || bamRecord.rID > rID)
             break;
-        if (bamRecord.beginPos >= (endPos + 100))
+        // bamRecord.beginPos is int32_t (SeqAn); cast once to unsigned for all comparisons.
+        // Reads with rID != -1 always have beginPos >= 0.
+        const unsigned recBegin = static_cast<unsigned>(bamRecord.beginPos);
+        const unsigned recEnd   = recBegin + getAlignmentLengthInRef(bamRecord);
+        if (recBegin >= (endPos + 100))
             break;
 
         // check if read corresponds to 3' cDNA end corresponding to user parameter
@@ -133,20 +137,20 @@ bool parse_bamRegion(TTruncCounts &truncCounts, TBamIn &inFile, TBai &baiIndex, 
 
         if (isForward && !hasFlagRC(bamRecord))          // Forward
         {
-            if (bamRecord.beginPos >= beginPos &&                       // already there ?
-                bamRecord.beginPos < endPos &&                          // before end of interval ?        
-                truncCounts[bamRecord.beginPos - beginPos] < options.maxTruncCount2)      
+            if (recBegin >= beginPos &&                       // already there ?
+                recBegin < endPos &&                          // before end of interval ?
+                truncCounts[recBegin - beginPos] < options.maxTruncCount2)
             {
-                ++truncCounts[bamRecord.beginPos - beginPos]; 
+                ++truncCounts[recBegin - beginPos];
             }
         }
-        else if (!isForward && hasFlagRC(bamRecord))                             // Reverse  
+        else if (!isForward && hasFlagRC(bamRecord))                             // Reverse
         {
-            if ((bamRecord.beginPos + getAlignmentLengthInRef(bamRecord) - 1) >= beginPos &&                        // already there ?
-                (bamRecord.beginPos + getAlignmentLengthInRef(bamRecord) - 1) < endPos &&                          // before end of interval  ? 
-                 truncCounts[bamRecord.beginPos - beginPos + getAlignmentLengthInRef(bamRecord) - 1] < options.maxTruncCount2)
+            if ((recEnd - 1) >= beginPos &&                        // already there ?
+                (recEnd - 1) < endPos &&                           // before end of interval ?
+                 truncCounts[recEnd - 1 - beginPos] < options.maxTruncCount2)
             {
-                ++truncCounts[bamRecord.beginPos - beginPos + getAlignmentLengthInRef(bamRecord) - 1]; 
+                ++truncCounts[recEnd - 1 - beginPos];
             }
         }
     }

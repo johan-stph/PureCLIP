@@ -146,8 +146,6 @@ struct Fct_GSL_X_GAMMA_REG
     long double operator()(const gsl_vector * x)
     {      
         const long double k = gsl_vector_get (x, 0);
-        const long double b0 = gsl_vector_get (x, 1);
-        const long double b1 = gsl_vector_get (x, 2);
 
         long double f = 0.0;
 
