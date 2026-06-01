@@ -59,6 +59,7 @@ public:
     bool updateRegCoeffsAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
     bool updateRegCoeffsAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
  
+    void invalidateCache() {}  // no-op for GAMMA_REG (compatibility with GAMMA interface)
 
     double b0;
     double b1;

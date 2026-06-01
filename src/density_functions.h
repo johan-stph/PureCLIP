@@ -54,16 +54,24 @@ class GAMMA  // ignore positions with KDE below theshold
 {
 public:
 
-    GAMMA(double tp_): tp(tp_) {}
-    GAMMA() {}
+    GAMMA(double tp_): tp(tp_), cache_valid(false) {}
+    GAMMA() : cache_valid(false) {}
 
     long double getDensity(double const &x);
     bool updateThetaAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options, bool subsample = false); 
     bool updateThetaAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options, bool subsample = false); 
 
+    void invalidateCache() { cache_valid = false; }
+
     double b0;   // scale parameter
     double k;       // shape parameter 
     double tp;      // truncation point
+
+private:
+    // Cached pre-computed values (recomputed lazily when b0/k change)
+    bool cache_valid;
+    long double theta_;
+    long double inv_norm_;  // 1 / (pow(theta,k) * tgamma(k) * (1 - gamma_p(k,tp/theta)))
 };
 
 
@@ -554,19 +562,26 @@ bool GAMMA::updateThetaAndK(String<String<double> > &startSet,
 
 long double GAMMA::getDensity(double const &x)   
 {
-    if (x < this->tp) return 0.0; 
-    long double theta = (long double)exp(this->b0)/(long double)this->k;
+    if (x < this->tp) return 0.0;
 
-    long double f1 = pow((long double)x, (long double)this->k - 1.0) * exp(-(long double)x/(long double)theta);
-    long double f2 = pow((long double)theta, (long double)this->k) * tgamma((long double)this->k);
-    
-    // normalized lower incomplete gamma function
-    long double nligf = boost::math::gamma_p((long double)this->k, (long double)this->tp/(long double)theta);
-    if (nligf == 1.0) 
+    // Lazy recompute: theta, tgamma(k), gamma_p only change when b0/k are updated
+    if (!cache_valid)
     {
-        std::cout << "ERROR: (1 - nligf) is 0! Not set to max. value, should not happen for non-GLM gamma model!" << std::endl;
-    } 
-    return  ((f1/f2)/(1.0 - nligf));
+        long double lk = (long double)this->k;
+        theta_ = (long double)exp((long double)this->b0) / lk;
+        long double nligf = boost::math::gamma_p(lk, (long double)this->tp / theta_);
+        if (nligf == 1.0)
+        {
+            std::cout << "ERROR: (1 - nligf) is 0! Not set to max. value, should not happen for non-GLM gamma model!" << std::endl;
+        }
+        inv_norm_ = 1.0L / (pow(theta_, lk) * tgamma(lk) * (1.0L - nligf));
+        cache_valid = true;
+    }
+
+    // Fast path: exp((k-1)*log(x) - x/theta) / normalizer
+    long double lk = (long double)this->k;
+    long double f1 = exp((lk - 1.0L) * log((long double)x) - (long double)x / theta_);
+    return f1 * inv_norm_;
 }
 
 
