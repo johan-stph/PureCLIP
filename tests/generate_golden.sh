@@ -21,9 +21,10 @@ TESTS_DIR="${2:-${SCRIPT_DIR}}"
 SYN_DIR="${TESTS_DIR}/data/synthetic"
 CHRM_DIR="${TESTS_DIR}/data/chrM"
 FULL_DIR="${TESTS_DIR}/data/full"
-GOLDEN_SYN="${TESTS_DIR}/golden/synthetic"
-GOLDEN_CHR="${TESTS_DIR}/golden/chrM"
-GOLDEN_FULL="${TESTS_DIR}/golden/chr21"
+PLATFORM="$(uname -s)"
+GOLDEN_SYN="${TESTS_DIR}/golden/synthetic/${PLATFORM}"
+GOLDEN_CHR="${TESTS_DIR}/golden/chrM/${PLATFORM}"
+GOLDEN_FULL="${TESTS_DIR}/golden/chr21/${PLATFORM}"
 
 [[ -x "$PURECLIP" ]] || { echo "ERROR: not executable: $PURECLIP"; exit 1; }
 

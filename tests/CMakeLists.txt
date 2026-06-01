@@ -26,8 +26,8 @@
 set(T           "${CMAKE_CURRENT_SOURCE_DIR}")   # tests/ root
 set(SYN         "${T}/data/synthetic")
 set(CHRM        "${T}/data/chrM")
-set(GOLDEN_SYN  "${T}/golden/synthetic")
-set(GOLDEN_CHR  "${T}/golden/chrM")
+set(GOLDEN_SYN  "${T}/golden/synthetic/${CMAKE_SYSTEM_NAME}")
+set(GOLDEN_CHR  "${T}/golden/chrM/${CMAKE_SYSTEM_NAME}")
 set(OUT         "${CMAKE_BINARY_DIR}/test_output")
 set(PY          "python3")
 set(CMP         "${T}/compare.py")
@@ -229,7 +229,7 @@ endif()
 # =============================================================================
 
 set(FULL        "${T}/data/full")
-set(GOLDEN_FULL "${T}/golden/chr21")
+set(GOLDEN_FULL "${T}/golden/chr21/${CMAKE_SYSTEM_NAME}")
 
 if(EXISTS "${FULL}/chr21.bam" AND EXISTS "${FULL}/chr21.fa")
 
