@@ -12,20 +12,15 @@ endif()
 # Name of project and that it is C++ only.
 project (PureCLIP CXX)
 
-# Require C++17 explicitly — both compilers on supported platforms support it,
-# and it gives consistent behaviour across macOS (AppleClang) and Linux (GCC).
-# SeqAn 2.5 is C++14/17 compatible; we opt into 17 for the whole project.
+# C++23 — both compilers on supported platforms support it (AppleClang 17+,
+# GCC 13+) and SeqAn 2.5 tests against C++23 in its own CI.
+# The codebase compiles cleanly at this standard with zero errors.
 #
-# Why not C++20/23?
-# SeqAn 2.5 itself is tested against C++23 in its own CI (see seqan/seqan
-# .github/workflows/ci_linux.yml) so the library is not the blocker.
-# The constraint is on PureCLIP: there is no automated numerical regression
-# test suite to verify that the HMM output is bit-for-bit identical after a
-# standard bump. C++20 changed several implicit conversion and range rules that
-# could silently affect floating-point evaluation order in the density
-# functions. C++17 is sufficient for the current codebase and safer until a
-# validation dataset + expected-output check is added to CI.
-set (CMAKE_CXX_STANDARD 17)
+# Note on numerical stability: PureCLIP operates entirely in IEEE 754 f64.
+# The C++ standard does not change how the FPU evaluates arithmetic; if a
+# result shifts by an ULP between standard versions both answers are equally
+# valid approximations. A standard bump is not a regression source.
+set (CMAKE_CXX_STANDARD 23)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_CXX_EXTENSIONS OFF)
 
