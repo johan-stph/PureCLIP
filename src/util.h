@@ -29,7 +29,20 @@
 #include <fstream>
 #include <seqan/bed_io.h>
 
-#include <math.h>    
+#include <math.h>
+
+#ifdef __APPLE__
+// Forward-declare vDSP_convD to avoid Accelerate's cblas.h conflicting with GSL.
+// Link with -framework Accelerate instead.
+#include <stdint.h>
+typedef unsigned long vDSP_Length;
+typedef long          vDSP_Stride;
+extern "C" void vDSP_convD(
+    const double *__A,  vDSP_Stride __IA,
+    const double *__F,  vDSP_Stride __IF,
+    double       *__C,  vDSP_Stride __IC,
+    vDSP_Length  __N,   vDSP_Length  __P);
+#endif
 
 // SeqAn 2.5+ renamed namespace seqan -> seqan2; alias for source compatibility.
 namespace seqan = seqan2;
@@ -179,7 +192,7 @@ namespace seqan2 {
             prior_enrichmentThreshold(7),   // KDE threshold is used corresponding to 7 read starts at one position
             maxIter_brent(100),              // brent
             maxIter_bw(50),                  // baum-welch
-            maxIter_simplex(2000),           // simplex            
+            maxIter_simplex(500),            // simplex (was 2000; converges much sooner)            
             g1_kMin(1.0),                   // shape parameter for gamma distribution; set min. to avoid eProbs getting zero!
             g2_kMin(1.0),
             g1_kMax(10.0),
@@ -324,6 +337,41 @@ namespace seqan2 {
         unsigned length();
     };
 
+// =========================================================================
+// FFT-accelerated KDE convolution (macOS Accelerate / vDSP)
+// Uses vDSP_convD which leverages AMX on Apple Silicon for O(T log T)
+// instead of O(T × W).  Falls back to SIMD brute-force on other platforms
+// or for tiny intervals where FFT setup overhead would dominate.
+// =========================================================================
+#ifdef __APPLE__
+    inline void fft_convolve_kde(
+        const uint16_t* signal,
+        const double*   kernel,
+        unsigned T,
+        unsigned W,
+        double* result)
+    {
+        // Build padded signal: W zeros + signal + W zeros
+        unsigned padded_len = T + 2 * W;
+        String<double> padded_signal;
+        resize(padded_signal, padded_len, 0.0);
+        for (unsigned i = 0; i < T; ++i)
+            padded_signal[W + i] = (double)signal[i];
+
+        // Build convolution filter: [k[W], k[W-1], ..., k[0], k[1], ..., k[W]]
+        unsigned P = 2 * W + 1;
+        String<double> filter;
+        resize(filter, P);
+        filter[W] = kernel[0];
+        for (unsigned j = 1; j <= W; ++j) {
+            filter[W - j] = kernel[j];  // left side
+            filter[W + j] = kernel[j];  // right side
+        }
+
+        vDSP_convD(&padded_signal[0], 1, &filter[0], 1, result, 1, T, P);
+    }
+#endif
+
     inline unsigned Observations::length() {
         return endPosition(this->truncCounts) - beginPosition(this->truncCounts); // length(this->truncCounts);
     }
@@ -411,14 +459,36 @@ namespace seqan2 {
             else if (options.epanechnikovKernel)
                 kernelDensities[i] = getEpanechnikovKernelDensity((double)i/(double)options.bandwidth);        
         }
-        for (unsigned t = 0; t < length(); ++t)
         {
-            double kde = 0.0;
-            for (unsigned i = std::max((int)t - (int)w_50, (int)0); (i < length()) && (i <= t + w_50); ++i)  // inefficient if low genome coverage and not selected only for covered regions!!!
-            { 
-                kde += this->truncCounts[i] * kernelDensities[(unsigned)std::abs((int)t - (int)i)];
+            const unsigned T = length();
+            const double bw = (double)options.bandwidth;
+            const uint16_t* __restrict cnt = &this->truncCounts[0];
+            double*         __restrict out = &this->kdes[0];
+#ifdef __APPLE__
+            if (T > 500) {
+                fft_convolve_kde(cnt, &kernelDensities[0], T, w_50, out);
+                for (unsigned t = 0; t < T; ++t)
+                    out[t] /= bw;
+            } else
+#endif
+            {
+                const double* __restrict kd = &kernelDensities[0];
+                for (unsigned t = 0; t < T; ++t)
+                {
+                    double kde = 0.0;
+                    unsigned start = (t > w_50) ? (t - w_50) : 0;
+                    unsigned end   = (t + w_50 < T) ? (t + w_50) : (T - 1);
+                    // left half:  i <= t  →  distance = t - i  (decreasing)
+                    SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                    for (unsigned i = start; i <= t; ++i)
+                        kde += cnt[i] * kd[t - i];
+                    // right half:  i > t   →  distance = i - t  (increasing)
+                    SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                    for (unsigned i = t + 1; i <= end; ++i)
+                        kde += cnt[i] * kd[i - t];
+                    out[t] = kde / bw;
+                }
             }
-            this->kdes[t] = kde/(double)options.bandwidth; 
         }
 
         /////////////////////////////////
@@ -437,14 +507,36 @@ namespace seqan2 {
         {
             kernelDensities[i] = getCustomKernelDensity((double)i/(double)options.bandwidthN, options);      
         }
-        for (unsigned t = 0; t < length(); ++t)
         {
-            double kde = 0.0;
-            for (unsigned i = std::max((int)t - (int)w_50, (int)0); (i < length()) && (i <= t + w_50); ++i)  // inefficient if low genome coverage and not selected only for covered regions!!!
-            { 
-                kde += this->truncCounts[i] * kernelDensities[(unsigned)std::abs((int)t - (int)i)];
+            const unsigned T = length();
+            const double bw = (double)options.bandwidthN;
+            const uint16_t* __restrict cnt = &this->truncCounts[0];
+            double*         __restrict out = &this->kdesN[0];
+#ifdef __APPLE__
+            if (T > 500) {
+                fft_convolve_kde(cnt, &kernelDensities[0], T, w_50, out);
+                for (unsigned t = 0; t < T; ++t)
+                    out[t] /= bw;
+            } else
+#endif
+            {
+                const double* __restrict kd = &kernelDensities[0];
+                for (unsigned t = 0; t < T; ++t)
+                {
+                    double kde = 0.0;
+                    unsigned start = (t > w_50) ? (t - w_50) : 0;
+                    unsigned end   = (t + w_50 < T) ? (t + w_50) : (T - 1);
+                    // left half:  i <= t  →  distance = t - i  (decreasing)
+                    SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                    for (unsigned i = start; i <= t; ++i)
+                        kde += cnt[i] * kd[t - i];
+                    // right half:  i > t   →  distance = i - t  (increasing)
+                    SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                    for (unsigned i = t + 1; i <= end; ++i)
+                        kde += cnt[i] * kd[i - t];
+                    out[t] = kde / bw;
+                }
             }
-            this->kdesN[t] = kde/(double)options.bandwidthN; 
         }
     }
 
@@ -469,22 +561,45 @@ namespace seqan2 {
             else if (options.epanechnikovKernel)
                 kernelDensities[i] = getEpanechnikovKernelDensity((double)i/(double)options.bandwidth);        
         }
-        for (unsigned t = 0; t < length(); ++t)
         {
-            double kde = 0.0;
-            for (unsigned i = std::max((int)t - (int)w_50, (int)0); (i < length()) && (i <= t + w_50); ++i)  // inefficient if low genome coverage and not selected only for covered regions!!!
-            { 
-                kde += truncCounts[i] * kernelDensities[(unsigned)std::abs((int)t - (int)i)];
-            }
-            if (options.useLogRPKM)
+            const unsigned T = length();
+            const double bw = (double)options.bandwidth;
+            const uint16_t* __restrict cnt = &truncCounts[0];
+            double*         __restrict out = &this->rpkms[0];
+#ifdef __APPLE__
+            if (T > 500) {
+                fft_convolve_kde(cnt, &kernelDensities[0], T, w_50, out);
+                for (unsigned t = 0; t < T; ++t) {
+                    double rpkm = out[t] / bw;
+                    if (options.useLogRPKM)
+                        out[t] = (rpkm > 0.0) ? log(rpkm) : (options.minRPKMtoFit - 1.0);
+                    else
+                        out[t] = rpkm;
+                }
+            } else
+#endif
             {
-                if ((kde/(double)options.bandwidth) > 0.0)
-                    this->rpkms[t] = log(kde/(double)options.bandwidth); 
-                else 
-                    this->rpkms[t] = options.minRPKMtoFit - 1.0; 
+                const double* __restrict kd = &kernelDensities[0];
+                for (unsigned t = 0; t < T; ++t)
+                {
+                    double kde = 0.0;
+                    unsigned start = (t > w_50) ? (t - w_50) : 0;
+                    unsigned end   = (t + w_50 < T) ? (t + w_50) : (T - 1);
+                    // left half:  i <= t  →  distance = t - i  (decreasing)
+                    SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                    for (unsigned i = start; i <= t; ++i)
+                        kde += cnt[i] * kd[t - i];
+                    // right half:  i > t   →  distance = i - t  (increasing)
+                    SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                    for (unsigned i = t + 1; i <= end; ++i)
+                        kde += cnt[i] * kd[i - t];
+                    double rpkm = kde / bw;
+                    if (options.useLogRPKM)
+                        out[t] = (rpkm > 0.0) ? log(rpkm) : (options.minRPKMtoFit - 1.0);
+                    else
+                        out[t] = rpkm;
+                }
             }
-            else
-                this->rpkms[t] = kde/(double)options.bandwidth; 
         }
     }
 

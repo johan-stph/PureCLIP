@@ -111,6 +111,15 @@ include (SeqAn)
 include (Boost)
 find_package (GSL REQUIRED)
 
+# vDSP FFT convolution (macOS-only)
+if (APPLE)
+    find_library(ACCELERATE_FRAMEWORK Accelerate)
+    if (NOT ACCELERATE_FRAMEWORK)
+        message(FATAL_ERROR "Accelerate framework not found")
+    endif()
+    message(STATUS "Accelerate framework: ${ACCELERATE_FRAMEWORK}")
+endif()
+
 # ----------------------------------------------------------------------------
 # Build Setup
 # ----------------------------------------------------------------------------
@@ -183,7 +192,8 @@ foreach (_target pureclip winextract)
     target_link_libraries      (${_target} PRIVATE
         ${Boost_LIBRARIES}
         ${SEQAN_LIBRARIES}
-        ${GSL_LIBRARIES})
+        ${GSL_LIBRARIES}
+        ${ACCELERATE_FRAMEWORK})
 endforeach()
 
 # Installation
