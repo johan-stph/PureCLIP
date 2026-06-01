@@ -218,3 +218,86 @@ else()
         "       Run:  tests/prepare_real.sh <path/to/sample_run>")
 endif()
 
+
+# =============================================================================
+# Tier 3 – Real chr21 data (offline only, ~1 min per test, needs sample_run)
+#
+# NOT run in CI. Use `ctest -L tier3` for pre-merge validation once you have
+# the sample data extracted. Data is NOT committed — fetch it first:
+#   ./tests/prepare_full.sh <path/to/sample_run>
+# =============================================================================
+
+set(FULL        "${T}/data/full")
+set(GOLDEN_FULL "${T}/golden/chr21")
+
+if(EXISTS "${FULL}/chr21.bam" AND EXISTS "${FULL}/chr21.fa")
+
+    macro(add_full_run TEST_NAME OUT_PFX)
+        add_test(NAME ${TEST_NAME}
+            COMMAND ${BIN}
+                -i   "${FULL}/chr21.bam"
+                -bai "${FULL}/chr21.bam.bai"
+                -g   "${FULL}/chr21.fa"
+                -o   "${OUT}/chr21/${OUT_PFX}_sites.bed"
+                -or  "${OUT}/chr21/${OUT_PFX}_regions.bed"
+                -p   "${OUT}/chr21/${OUT_PFX}_params.txt"
+                -iv  chr21 -chr chr21
+                -nt  4
+                ${ARGN})
+        set_tests_properties(${TEST_NAME} PROPERTIES
+            LABELS   "tier3"
+            TIMEOUT  300)
+    endmacro()
+
+    # T3.1  smoke ──────────────────────────────────────────────────────────
+    add_full_run(t3_1_smoke_chr21 smoke)
+    add_test(NAME t3_1_smoke_chr21_check
+        COMMAND ${PY} "${CMP}" count "${OUT}/chr21/smoke_sites.bed" 1)
+    set_tests_properties(t3_1_smoke_chr21_check PROPERTIES
+        LABELS   "tier3"
+        TIMEOUT  15
+        DEPENDS  t3_1_smoke_chr21)
+
+    # T3.2  sites regression ───────────────────────────────────────────────
+    add_full_run(t3_2_reg_run reg)
+    add_test(NAME t3_2_regression_chr21_sites
+        COMMAND ${PY} "${CMP}" bed
+            "${OUT}/chr21/reg_sites.bed"
+            "${GOLDEN_FULL}/sites.bed")
+    set_tests_properties(t3_2_regression_chr21_sites PROPERTIES
+        LABELS          "tier3;regression"
+        TIMEOUT         15
+        DEPENDS         t3_2_reg_run
+        SKIP_RETURN_CODE 77)
+
+    # T3.3  regions regression ─────────────────────────────────────────────
+    add_test(NAME t3_3_regression_chr21_regions
+        COMMAND ${PY} "${CMP}" bed
+            "${OUT}/chr21/reg_regions.bed"
+            "${GOLDEN_FULL}/regions.bed")
+    set_tests_properties(t3_3_regression_chr21_regions PROPERTIES
+        LABELS          "tier3;regression"
+        TIMEOUT         15
+        DEPENDS         t3_2_reg_run
+        SKIP_RETURN_CODE 77)
+
+    # T3.4  params regression ──────────────────────────────────────────────
+    add_test(NAME t3_4_regression_chr21_params
+        COMMAND ${PY} "${CMP}" params
+            "${OUT}/chr21/reg_params.txt"
+            "${GOLDEN_FULL}/params.txt"
+            --tol 1e-4)
+    set_tests_properties(t3_4_regression_chr21_params PROPERTIES
+        LABELS          "tier3;regression"
+        TIMEOUT         15
+        DEPENDS         t3_2_reg_run
+        SKIP_RETURN_CODE 77)
+
+    message(STATUS "Tier 3 tests ENABLED (chr21 data found)")
+
+else()
+    message(STATUS
+        "Tier 3 tests DISABLED: chr21 data not found.\n"
+        "       Run:  tests/prepare_full.sh <path/to/sample_run>")
+endif()
+

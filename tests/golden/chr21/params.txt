@@ -1,0 +1,25 @@
+options.useKdeThreshold	0.00807885
+
+Parameter learned: 
+gamma1.b0	-4.47225
+gamma1.mean	0.0114216
+gamma1.k	1
+gamma1.tp	0.00807885
+
+gamma2.b0	-1.60172
+gamma2.mean	0.20155
+gamma2.k	1
+gamma2.tp	0.00807885
+
+bin1.p	0.0142944
+
+bin2.p	0.125352
+
+Transition probabilities:
+0.999819	5.14828e-48	0.000180858	1.39656e-54	
+0.00211102	2.37585e-38	0.997889	2.58927e-32	
+0.00501491	1.83326e-41	0.994648	0.000337351	
+3.88917e-48	2.88358e-69	0.499477	0.500523	
+
+slr_NfromKDE.b0	-0.1413
+slr_NfromKDE.b1	109.84

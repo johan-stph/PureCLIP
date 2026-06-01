@@ -19,9 +19,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTS_DIR="${2:-${SCRIPT_DIR}}"
 
 SYN_DIR="${TESTS_DIR}/data/synthetic"
-REAL_DIR="${TESTS_DIR}/data/real"
+CHRM_DIR="${TESTS_DIR}/data/chrM"
+FULL_DIR="${TESTS_DIR}/data/full"
 GOLDEN_SYN="${TESTS_DIR}/golden/synthetic"
 GOLDEN_CHR="${TESTS_DIR}/golden/chrM"
+GOLDEN_FULL="${TESTS_DIR}/golden/chr21"
 
 [[ -x "$PURECLIP" ]] || { echo "ERROR: not executable: $PURECLIP"; exit 1; }
 
@@ -49,15 +51,15 @@ echo "  regions: $(wc -l < "${GOLDEN_SYN}/regions.bed") lines"
 # ── Tier 2: chrM ─────────────────────────────────────────────────────────────
 echo ""
 echo "=== Tier 2: chrM golden outputs ==="
-if [[ ! -f "${REAL_DIR}/chrM.bam" ]]; then
+if [[ ! -f "${CHRM_DIR}/chrM.bam" ]]; then
     echo "SKIP: chrM data not found."
     echo "      Run:  tests/prepare_real.sh <sample_run_dir>"
 else
     mkdir -p "$GOLDEN_CHR"
     "$PURECLIP" \
-        -i   "${REAL_DIR}/chrM.bam" \
-        -bai "${REAL_DIR}/chrM.bam.bai" \
-        -g   "${REAL_DIR}/chrM.fa" \
+        -i   "${CHRM_DIR}/chrM.bam" \
+        -bai "${CHRM_DIR}/chrM.bam.bai" \
+        -g   "${CHRM_DIR}/chrM.fa" \
         -o   "${GOLDEN_CHR}/sites.bed" \
         -or  "${GOLDEN_CHR}/regions.bed" \
         -p   "${GOLDEN_CHR}/params.txt" \
@@ -65,6 +67,28 @@ else
 
     echo "  sites:   $(wc -l < "${GOLDEN_CHR}/sites.bed")  lines"
     echo "  regions: $(wc -l < "${GOLDEN_CHR}/regions.bed") lines"
+fi
+
+# ── Tier 3: chr21 (offline, ~1 min) ─────────────────────────────────────────
+echo ""
+echo "=== Tier 3: chr21 golden outputs (offline) ==="
+if [[ ! -f "${FULL_DIR}/chr21.bam" ]]; then
+    echo "SKIP: chr21 data not found."
+    echo "      Run:  tests/prepare_full.sh <sample_run_dir>"
+else
+    mkdir -p "$GOLDEN_FULL"
+    "$PURECLIP" \
+        -i   "${FULL_DIR}/chr21.bam" \
+        -bai "${FULL_DIR}/chr21.bam.bai" \
+        -g   "${FULL_DIR}/chr21.fa" \
+        -o   "${GOLDEN_FULL}/sites.bed" \
+        -or  "${GOLDEN_FULL}/regions.bed" \
+        -p   "${GOLDEN_FULL}/params.txt" \
+        -iv  'chr21;' -chr 'chr21;' \
+        -nt  4
+
+    echo "  sites:   $(wc -l < "${GOLDEN_FULL}/sites.bed")  lines"
+    echo "  regions: $(wc -l < "${GOLDEN_FULL}/regions.bed") lines"
 fi
 
 echo ""

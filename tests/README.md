@@ -2,13 +2,14 @@
 
 ## Overview
 
-| Tier | Data | Tests | Typical time | RAM |
-|------|------|-------|-------------|-----|
-| 1 | Synthetic (10 kb, ~880 reads) | 13 | ~1–5 s each | < 256 MB |
-| 2 | Real chrM (16 kb, ~97 k reads) | 6 | ~30–60 s each | < 512 MB |
+| Tier | Data | Tests | Typical time | RAM | CI |
+|------|------|-------|-------------|-----|----|
+| 1 | Synthetic (10 kb, ~880 reads) | 15 | ~1–4 s total | < 256 MB | ✅ |
+| 2 | Real chrM (16 kb, ~97 k reads) | 7 | ~12 s total | < 512 MB | ✅ |
+| 3 | Real chr21 (48 Mb, ~77 k reads) | 6 | ~50 s total | < 1 GB | ❌ offline only |
 
-Tier-2 tests are automatically disabled at cmake-configure time if
-`tests/data/real/chrM.bam` does not exist.
+Tier-2 data is committed (~3 MB). Tier-3 needs external sample data
+(49 MB chr21 reference — not committed).
 
 ## Quick Start
 
@@ -19,16 +20,17 @@ mkdir build && cd build
 cmake ../src
 make -j$(sysctl -n hw.logicalcpu)
 
-# 2. Run tier-1 tests (fast, no data prep needed)
-ctest -L tier1 --output-on-failure
-
-# 3. (Optional) Enable tier-2 real-data tests
-cd ..
-./tests/prepare_real.sh ../sample_run    # extract chrM once
-
-# 4. Re-configure so CMake sees the new data, then test
-cd build && cmake ../src
+# 2. Run CI-level tests (tier-1 + tier-2, no data prep needed)
 ctest -L "tier1|tier2" --output-on-failure
+
+# 3. (Optional) Enable tier-3: extract chr21 from sample data once
+cd ..
+./tests/prepare_full.sh ../sample_run    # needs 49 MB chr21 reference
+./tests/generate_golden.sh build/pureclip   # regenerate all golden files
+
+# 4. Re-configure so CMake sees tier-3, then test
+cd build && cmake ../src
+ctest -L tier3 --output-on-failure
 ```
 
 ## Golden Files
@@ -76,11 +78,22 @@ smoke and mode tests on a fresh checkout without needing to regenerate.
 | `t2_4_regression_chrM_params` | params float values within `tol=1e-4` |
 | `t2_5_chrM_bc1` | bc=1 mode on real data exits 0 |
 
+### Tier 3 – Real chr21 (offline)
+
+| Test | What it checks |
+|------|----------------|
+| `t3_1_smoke_chr21` | Basic run on 48 Mb nuclear chromosome exits 0 |
+| `t3_2_reg_run` | Regression run (reused by t3_2/3/4) |
+| `t3_2_regression_chr21_sites` | sites.bed **exact** match vs golden |
+| `t3_3_regression_chr21_regions` | regions.bed **exact** match vs golden |
+| `t3_4_regression_chr21_params` | params float values within `tol=1e-4` |
+
 ## Useful CTest Invocations
 
 ```bash
 ctest -L tier1                            # fast checks only
-ctest -L "tier1|tier2"                    # full suite
+ctest -L "tier1|tier2"                    # CI suite
+ctest -L "tier1|tier2|tier3"              # full pre-merge validation
 ctest -L regression                       # only golden comparisons
 ctest -L determinism                      # thread consistency
 ctest -N                                  # dry-run: list all tests
