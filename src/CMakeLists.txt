@@ -15,6 +15,14 @@ project (PureCLIP CXX)
 # Require C++17 explicitly — both compilers on supported platforms support it,
 # and it gives consistent behaviour across macOS (AppleClang) and Linux (GCC).
 # SeqAn 2.5 is C++14/17 compatible; we opt into 17 for the whole project.
+#
+# Why not C++20/23?
+# SeqAn 2.x is no longer actively developed and has not been audited against
+# C++20/23. Several SeqAn headers rely on patterns (e.g. implicit conversions,
+# iterator category assumptions) that became hard errors or changed behaviour
+# in C++20. Upgrading the standard without a full test suite against a known
+# good dataset risks silent numerical differences in the HMM output.
+# Revisit if/when PureCLIP migrates to SeqAn 3 (which is C++20-native).
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_CXX_EXTENSIONS OFF)
