@@ -411,14 +411,27 @@ namespace seqan2 {
             else if (options.epanechnikovKernel)
                 kernelDensities[i] = getEpanechnikovKernelDensity((double)i/(double)options.bandwidth);        
         }
-        for (unsigned t = 0; t < length(); ++t)
         {
-            double kde = 0.0;
-            for (unsigned i = std::max((int)t - (int)w_50, (int)0); (i < length()) && (i <= t + w_50); ++i)  // inefficient if low genome coverage and not selected only for covered regions!!!
-            { 
-                kde += this->truncCounts[i] * kernelDensities[(unsigned)std::abs((int)t - (int)i)];
+            const unsigned T = length();
+            const double bw = (double)options.bandwidth;
+            const uint16_t* __restrict cnt = &this->truncCounts[0];
+            const double*   __restrict kd  = &kernelDensities[0];
+            double*         __restrict out = &this->kdes[0];
+            for (unsigned t = 0; t < T; ++t)
+            {
+                double kde = 0.0;
+                unsigned start = (t > w_50) ? (t - w_50) : 0;
+                unsigned end   = (t + w_50 < T) ? (t + w_50) : (T - 1);
+                // left half:  i <= t  →  distance = t - i  (decreasing)
+                SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                for (unsigned i = start; i <= t; ++i)
+                    kde += cnt[i] * kd[t - i];
+                // right half:  i > t   →  distance = i - t  (increasing)
+                SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                for (unsigned i = t + 1; i <= end; ++i)
+                    kde += cnt[i] * kd[i - t];
+                out[t] = kde / bw;
             }
-            this->kdes[t] = kde/(double)options.bandwidth; 
         }
 
         /////////////////////////////////
@@ -437,14 +450,27 @@ namespace seqan2 {
         {
             kernelDensities[i] = getCustomKernelDensity((double)i/(double)options.bandwidthN, options);      
         }
-        for (unsigned t = 0; t < length(); ++t)
         {
-            double kde = 0.0;
-            for (unsigned i = std::max((int)t - (int)w_50, (int)0); (i < length()) && (i <= t + w_50); ++i)  // inefficient if low genome coverage and not selected only for covered regions!!!
-            { 
-                kde += this->truncCounts[i] * kernelDensities[(unsigned)std::abs((int)t - (int)i)];
+            const unsigned T = length();
+            const double bw = (double)options.bandwidthN;
+            const uint16_t* __restrict cnt = &this->truncCounts[0];
+            const double*   __restrict kd  = &kernelDensities[0];
+            double*         __restrict out = &this->kdesN[0];
+            for (unsigned t = 0; t < T; ++t)
+            {
+                double kde = 0.0;
+                unsigned start = (t > w_50) ? (t - w_50) : 0;
+                unsigned end   = (t + w_50 < T) ? (t + w_50) : (T - 1);
+                // left half:  i <= t  →  distance = t - i  (decreasing)
+                SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                for (unsigned i = start; i <= t; ++i)
+                    kde += cnt[i] * kd[t - i];
+                // right half:  i > t   →  distance = i - t  (increasing)
+                SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                for (unsigned i = t + 1; i <= end; ++i)
+                    kde += cnt[i] * kd[i - t];
+                out[t] = kde / bw;
             }
-            this->kdesN[t] = kde/(double)options.bandwidthN; 
         }
     }
 
@@ -469,22 +495,31 @@ namespace seqan2 {
             else if (options.epanechnikovKernel)
                 kernelDensities[i] = getEpanechnikovKernelDensity((double)i/(double)options.bandwidth);        
         }
-        for (unsigned t = 0; t < length(); ++t)
         {
-            double kde = 0.0;
-            for (unsigned i = std::max((int)t - (int)w_50, (int)0); (i < length()) && (i <= t + w_50); ++i)  // inefficient if low genome coverage and not selected only for covered regions!!!
-            { 
-                kde += truncCounts[i] * kernelDensities[(unsigned)std::abs((int)t - (int)i)];
-            }
-            if (options.useLogRPKM)
+            const unsigned T = length();
+            const double bw = (double)options.bandwidth;
+            const uint16_t* __restrict cnt = &truncCounts[0];
+            const double*   __restrict kd  = &kernelDensities[0];
+            double*         __restrict out = &this->rpkms[0];
+            for (unsigned t = 0; t < T; ++t)
             {
-                if ((kde/(double)options.bandwidth) > 0.0)
-                    this->rpkms[t] = log(kde/(double)options.bandwidth); 
-                else 
-                    this->rpkms[t] = options.minRPKMtoFit - 1.0; 
+                double kde = 0.0;
+                unsigned start = (t > w_50) ? (t - w_50) : 0;
+                unsigned end   = (t + w_50 < T) ? (t + w_50) : (T - 1);
+                // left half:  i <= t  →  distance = t - i  (decreasing)
+                SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                for (unsigned i = start; i <= t; ++i)
+                    kde += cnt[i] * kd[t - i];
+                // right half:  i > t   →  distance = i - t  (increasing)
+                SEQAN_OMP_PRAGMA(simd reduction(+:kde))
+                for (unsigned i = t + 1; i <= end; ++i)
+                    kde += cnt[i] * kd[i - t];
+                double rpkm = kde / bw;
+                if (options.useLogRPKM)
+                    out[t] = (rpkm > 0.0) ? log(rpkm) : (options.minRPKMtoFit - 1.0);
+                else
+                    out[t] = rpkm;
             }
-            else
-                this->rpkms[t] = kde/(double)options.bandwidth; 
         }
     }
 
