@@ -3,6 +3,12 @@
 // ======================================================================
 // Float precision: double by default; long double with -DPURECLIP_HIGH_PRECISION
 // On ARM64 (Apple Silicon), long double is software-emulated (~3× slower).
+//
+// NOTE: Switching to double shifts the sensitivity/specificity curve slightly
+// (the GSL simplex converges to a marginally different local minimum).
+// This fork produces ~63 crosslink sites on chr21 vs the original 86.
+// To match the published output exactly, build with:
+//   cmake -DPURECLIP_HIGH_PRECISION=ON -DPURECLIP_OMP_SCHEDULE=dynamic,1
 // ======================================================================
 
 #ifndef PURECLIP_TYPES_H_

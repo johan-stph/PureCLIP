@@ -285,8 +285,10 @@ Result<void> HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &
     modelParams.gamma1.invalidateCache();
     modelParams.gamma2.invalidateCache();
     bool stop = false;
-    // ── Single parallel region over both strands + intervals ──
-    // collapse(2) + guided halves barrier count vs two sequential parallel for loops.
+    // ── Perf: merged two sequential parallel-for loops into one collapsed loop.
+    // Halves barrier count vs the original two-loop pattern.  The schedule macro
+    // (PURECLIP_OMP_PARALLEL_FOR) selects guided or dynamic,1 at build time.
+    // No output change beyond the Float precision shift documented in types.h.
     unsigned nFwd = length(this->setObs[0]);
     unsigned nRev = length(this->setObs[1]);
     unsigned nTotal = nFwd + nRev;
