@@ -146,11 +146,25 @@ jobs:
             -p   tests/golden/synthetic/Linux/params.txt \
             -nt  2
 
+      - name: Generate tier-2 golden files (Linux)
+        run: |
+          mkdir -p tests/golden/chrM/Linux
+          ./build/pureclip \
+            -i   tests/data/chrM/chrM.bam \
+            -bai tests/data/chrM/chrM.bam.bai \
+            -g   tests/data/chrM/chrM.fa \
+            -o   tests/golden/chrM/Linux/sites.bed \
+            -or  tests/golden/chrM/Linux/regions.bed \
+            -p   tests/golden/chrM/Linux/params.txt \
+            -nt  2
+
       - name: Upload Linux golden files
         uses: actions/upload-artifact@v4
         with:
           name: golden-linux-x86
-          path: tests/golden/synthetic/Linux/
+          path: |
+            tests/golden/synthetic/Linux/
+            tests/golden/chrM/Linux/
 
       - name: Verify
         run: |
