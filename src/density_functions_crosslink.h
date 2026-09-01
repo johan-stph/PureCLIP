@@ -52,6 +52,7 @@ public:
     ZTBIN() {}
  
     long double getDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
+    long double getLogDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
 
     void updateP(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, AppOptions const& options); 
 
@@ -147,5 +148,11 @@ void checkOrderBin1Bin2(ZTBIN &bin1, ZTBIN &bin2)
 }
 
 
+
+
+long double ZTBIN::getLogDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
+{
+    return logZtBinomialPmf(k, n, this->p);
+}
 
 #endif
