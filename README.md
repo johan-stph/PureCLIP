@@ -16,6 +16,11 @@ building from source (macOS & Linux), and upcoming package manager support.
 
 ---
 
+## Testing
+
+See **[TESTING.md](TESTING.md)** — `make test` runs a fast correctness check;
+`make test-all` adds the real-data tier.
+
 ## Galaxy: use PureCLIP online
 
 PureCLIP has been integrated into the European Galaxy server
