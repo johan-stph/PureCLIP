@@ -31,9 +31,12 @@
 
 #include <math.h>    
 
+// SeqAn 2.5+ renamed namespace seqan -> seqan2; alias for source compatibility.
+namespace seqan = seqan2;
+
 using namespace seqan;
 
-namespace seqan {
+namespace seqan2 {
 
     // TODO investigate impact
     class LogSumExp_lookupTable
