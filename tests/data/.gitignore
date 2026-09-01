@@ -1,0 +1,8 @@
+# Synthetic fixtures are regenerated deterministically by make_synthetic.py,
+# so they are not committed. Real chrM data (chrM/) is.
+synthetic/
+*.sam
+
+# Large offline fixtures, fetched or prepared locally — never committed.
+full/
+real/
