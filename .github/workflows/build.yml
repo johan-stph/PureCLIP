@@ -91,6 +91,52 @@ jobs:
         run: make -C build -j$(sysctl -n hw.logicalcpu)
 
   # ─────────────────────────────────────────────────────────────────────────────
+  # Linux · x86_64
+  # Runner: ubuntu-24.04 (standard x86_64 runner, available on all plans)
+  # Primary deployment target for HPC/server environments and the existing
+  # Bioconda package. GCC supports OpenMP natively.
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-linux-x86:
+    name: Linux · x86_64
+    runs-on: ubuntu-24.04
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ccache cmake g++ libgsl-dev libboost-dev zlib1g-dev libbz2-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-linux-x86-${{ github.sha }}
+          restore-keys: ccache-linux-x86-
+
+      - name: Configure
+        run: |
+          mkdir build && cd build
+          cmake ../src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: make -C build -j$(nproc)
+
+      - name: Verify
+        run: |
+          ./build/pureclip --version
+          ./build/winextract --version
+          file build/pureclip | grep -q x86-64 && echo "✓ native x86_64 binary"
+
+      - name: ccache stats
+        run: ccache --show-stats
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Linux · arm64
   # Runner: ubuntu-24.04-arm (available on GitHub Pro and above)
   # GCC supports OpenMP natively — no libomp workaround needed
