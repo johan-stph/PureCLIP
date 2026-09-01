@@ -14,16 +14,17 @@ class Pureclip2 < Formula
     mkdir "build" do
       system "cmake", "../src",
         "-DCMAKE_BUILD_TYPE=Release",
+        "-DPURE_CLIP_VERSION=#{version}",
         "-DGSL_ROOT_DIR=#{Formula["gsl"].opt_prefix}",
         "-DCMAKE_PREFIX_PATH=#{Formula["boost"].opt_prefix}",
         *std_cmake_args
       system "make", "-j#{ENV.make_jobs}"
     end
-    bin.install "build/pureclip"
+    bin.install "build/pureclip" => "pureclip2"
     bin.install "build/winextract"
   end
 
   test do
-    system "#{bin}/pureclip", "--version"
+    system "#{bin}/pureclip2", "--version"
   end
 end
