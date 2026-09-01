@@ -476,11 +476,8 @@ bool HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &modelPar
                         std::cout << " Interval: [" << (this->contigLength - this->setPos[s][i] - 1) << ", " << (this->contigLength - this->setPos[s][i] - 1 + this->setObs[s][i].length()) << ") on reverse strand." << std::endl;
                 }
                 stop = true;
-                if (!options.useHighPrecision)  // TODO ?
-                {
-                    SEQAN_OMP_PRAGMA(critical)
-                    std::cout << "NOTE: Try running PureCLIP in high floating-point precision mode (long double, parameter '-ld')." << std::endl;
-                }
+                SEQAN_OMP_PRAGMA(critical)
+                std::cout << "NOTE: The emission probability underflowed to 0. This happens on high-coverage intervals and depends on the width of 'long double' on this platform." << std::endl;
             }
             else if (!learning && discardInterval)
             {
@@ -495,11 +492,8 @@ bool HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &modelPar
                     else
                         std::cout << " Interval [" << (this->contigLength - this->setPos[s][i] - 1) << ", " << (this->contigLength - this->setPos[s][i] - 1 + this->setObs[s][i].length()) << ") on reverse strand." << std::endl;
                 }
-                if (!options.useHighPrecision)  // TODO ?
-                {
-                    SEQAN_OMP_PRAGMA(critical)
-                    std::cout << "NOTE: If this happens frequently, rerun PureCLIP in high floating-point precision mode (long double, parameter '-ld')." << std::endl;
-                }
+                SEQAN_OMP_PRAGMA(critical)
+                std::cout << "NOTE: The emission probability underflowed to 0, so this interval was not analysed. This happens on high-coverage intervals and depends on the width of 'long double' on this platform." << std::endl;
             }
         }
     }
