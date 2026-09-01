@@ -210,3 +210,15 @@ set (CPACK_INSTALLED_DIRECTORIES
     "${CMAKE_CURRENT_SOURCE_DIR}/../pkg;.")
 message (STATUS "Adding file ${CMAKE_CURRENT_SOURCE_DIR}/../pkg/README")
 include (CPack)
+
+# -----------------------------------------------------------------------------
+# Tests  (ctest -L tier1 ; see TESTING.md)
+# -----------------------------------------------------------------------------
+option (BUILD_TESTING_PURECLIP "Register the PureCLIP regression tests" ON)
+if (BUILD_TESTING_PURECLIP)
+    enable_testing ()
+    add_subdirectory (
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests"
+        "${CMAKE_BINARY_DIR}/tests"
+    )
+endif ()
