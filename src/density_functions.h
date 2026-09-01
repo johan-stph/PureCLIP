@@ -54,17 +54,29 @@ class GAMMA  // ignore positions with KDE below theshold
 {
 public:
 
-    GAMMA(double tp_): tp(tp_) {}
-    GAMMA() {}
+    GAMMA(double tp_): tp(tp_), cache_valid_(false) {}
+    GAMMA() : cache_valid_(false) {}
 
     long double getDensity(double const &x);
     long double getLogDensity(double const &x);
+
+    // b0 and k are public and updated in place by the optimiser, so the cache
+    // cannot invalidate itself; computeEmissionProbs() calls this first.
+    void invalidateCache() { cache_valid_ = false; }
     bool updateThetaAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
     bool updateThetaAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
 
     double b0;   // scale parameter
     double k;       // shape parameter 
     double tp;      // truncation point
+
+private:
+    // In log space the whole normaliser collapses to one additive constant
+    // that depends only on b0, k and tp — not on x. Caching it turns a
+    // gamma_q() plus two lgamma/log calls per position into an add.
+    bool        cache_valid_;
+    long double theta_;
+    long double logNorm_;   // -k*log(theta) - lgamma(k) - log(gamma_q(k, tp/theta))
 };
 
 
@@ -609,8 +621,22 @@ void checkOrderG1G2(GAMMA &gamma1, GAMMA &gamma2, AppOptions & /*options*/)
 
 long double GAMMA::getLogDensity(double const &x)
 {
-    const long double theta = (long double)std::exp(this->b0)/(long double)this->k;
-    return logTruncGammaDensity((long double)x, (long double)this->k, theta, (long double)this->tp);
+    if ((long double)x < (long double)this->tp) return logZeroDensity();
+
+    if (!cache_valid_)
+    {
+        const long double lk = (long double)this->k;
+        theta_ = (long double)std::exp((long double)this->b0) / lk;
+        const long double q = boost::math::gamma_q(lk, (long double)this->tp / theta_);
+        logNorm_ = (q > 0.0L)
+                 ? -lk * std::log(theta_) - std::lgamma(lk) - std::log(q)
+                 : std::numeric_limits<long double>::quiet_NaN();
+        cache_valid_ = true;
+    }
+    if (std::isnan(logNorm_)) return logZeroDensity();
+
+    return ((long double)this->k - 1.0L) * std::log((long double)x)
+         - (long double)x / theta_ + logNorm_;
 }
 
 #endif
