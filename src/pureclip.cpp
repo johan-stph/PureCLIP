@@ -27,6 +27,7 @@
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 
+#include "version.h"
 #include <iostream>
 #include <seqan/seq_io.h>
 #include <seqan/bam_io.h>
@@ -52,8 +53,8 @@ parseCommandLine(AppOptions & options, int argc, char const ** argv)
     ArgumentParser parser("pureclip");
     // Set short description, version, and date.
     setShortDescription(parser, "Protein-RNA interaction site detection ");
-    setVersion(parser, "1.3.1");
-    setDate(parser, "April 2019");
+    setVersion(parser, PURE_CLIP_VERSION);
+    setDate(parser, PURE_CLIP_BUILD_DATE);
 
     // Define usage line and long description.
     addUsageLine(parser, "[\\fIOPTIONS\\fP] <-i \\fIBAM FILE\\fP> <-bai \\fIBAI FILE\\fP> <-g \\fIGENOME FILE\\fP> <-o \\fIOUTPUT BED FILE\\fP> ");
