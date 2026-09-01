@@ -1,0 +1,38 @@
+{% set version = "2.0.0" %}
+
+package:
+  name: pureclip2
+  version: {{ version }}
+
+source:
+  url: https://github.com/johan-stph/PureCLIP/archive/refs/tags/v{{ version }}.tar.gz
+  sha256: 4583a4b6061264955c5d5194562979c6fa5f7301f224a7718eae66c69b2c0531
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - cmake
+    - make
+    - {{ compiler('cxx') }}
+  host:
+    - gsl
+    - boost-cpp
+    - zlib
+    - bzip2
+  run:
+    - gsl
+    - boost-cpp
+
+test:
+  commands:
+    - pureclip --version
+    - winextract --version
+
+about:
+  home: https://github.com/johan-stph/PureCLIP
+  license: MIT
+  license_file: LICENSE.md
+  summary: "Detect protein-RNA interaction footprints from single-nucleotide CLIP-seq data (v2, actively maintained fork)"
+  dev_url: https://github.com/johan-stph/PureCLIP
