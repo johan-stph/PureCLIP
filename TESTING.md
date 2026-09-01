@@ -74,39 +74,32 @@ git diff tests/golden/
 Regenerating is how a regression gets silently baptised as the new truth, so
 the diff belongs in the pull request for a reviewer to look at.
 
-## Known limitation: platform-dependent output
+## Cross-platform differences
 
-Goldens are stored per platform (`tests/golden/<case>/Darwin`, `.../Linux`)
-because PureCLIP does not produce identical output on macOS and Linux. On chrM
-the difference is large — 952 sites on macOS arm64 against 2088 on Linux — and
-it is not rounding. The cause is understood:
+Goldens are stored per platform (`tests/golden/<case>/Darwin`, `.../Linux`),
+but the reason is now narrow.
 
-1. `long double` differs by architecture. On macOS arm64 it *is* `double`
-   (53-bit mantissa, smallest normal ~1e-308); on Linux x86-64 it is 80-bit x87
-   (64-bit mantissa, ~1e-4932); on Linux aarch64 it is 128-bit quad. PureCLIP
-   prints the limits at startup: on macOS arm64 you get
-   `DBL_MIN_10_EXP: -307 LDBL_MIN_10_EXP: -307` — the same number twice.
-2. Emission probabilities are computed in linear space and only then converted
-   to logs. On a high-coverage interval the zero-truncated binomial term
-   underflows to exactly 0 in `double`, while it stays representable in 80-bit.
-3. When emissions hit 0, PureCLIP discards the whole interval — run with `-vv`
-   to see `Warning: discarding interval ... due to emission probabilities of
-   0.0`. On chrM, interval `[0, 4550)` is dropped on macOS. That window holds
-   about 74% of the reads, which is why the macOS site list starts at 4893.
+PureCLIP used to build its emission probabilities in linear space and take
+their logs afterwards. The zero-truncated binomial carries a `(1-p)^(n-k)`
+factor that underflows to 0 once n is large, and an emission of 0 makes
+PureCLIP discard the whole interval. Whether it underflowed depended on the
+width of `long double` — 80-bit on x86-64 Linux, 128-bit on aarch64 Linux,
+plain `double` on arm64 macOS — so macOS silently dropped high-coverage
+intervals that Linux kept. On chrM it discarded `[0, 4550)`, about 74% of the
+reads, and reported 952 sites where Linux reported 2088.
 
-So macOS output is a strict *subset* of Linux output: PureCLIP under-calls
-there, it never over-calls. `tests/golden/chrM/Darwin/sites.bed` is contained
-exactly in the Linux list, and the same holds for regions.
+The emission densities are computed in log space now, so that class of
+divergence is gone: macOS and Linux agree on every called position for the
+chrM fixture.
 
-PureCLIP's own advice when this happens is to rerun with `-ld` (long double).
-**That flag does nothing on Apple Silicon**, because `long double` is already
-`double` — the output is byte-identical and the same intervals are discarded.
-The real fix is to compute the emission log-densities directly rather than
-computing a linear density and taking its log; the forward-backward algorithm
-is already in log space, so the emissions are the remaining gap.
+What remains is small and will not go away: `lgamma`, `log` and `log1p` are not
+correctly rounded, and Apple's libm differs from glibc's. Scores therefore
+differ in the last digits — median relative 1.5e-5 on chrM, worst case ~2e-2.
+That is enough to break a byte-exact comparison while leaving every call
+identical, which is exactly why `sites` and `agreement` are paired: `sites`
+will fail across platforms, `agreement` will report `jaccard=1.0000`.
 
-Until that is fixed, compare like with like: a golden generated on macOS says
-nothing about a Linux build. A missing golden makes the comparison tests
-**skip** rather than fail, so a platform without recorded reference output
-still gets the `ground_truth` and `determinism` coverage, which are
-platform-independent.
+So: compare like with like. A golden generated on macOS should not be used to
+judge a Linux build. A missing golden makes the comparison tests **skip**
+rather than fail, so a platform without recorded reference output still gets
+the `ground_truth` and `determinism` coverage, which are platform-independent.
