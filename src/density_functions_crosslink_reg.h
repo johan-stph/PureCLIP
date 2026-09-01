@@ -56,6 +56,8 @@ public:
  
     long double getDensity(unsigned const &k, unsigned const &n, long double const &pred, AppOptions const& options);
     long double getDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
+    long double getLogDensity(unsigned const &k, unsigned const &n, long double const &pred, AppOptions const& options);
+    long double getLogDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
 
     void updateP(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, AppOptions const& options);
     void updateRegCoeffs(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, AppOptions const&options);
@@ -263,5 +265,17 @@ void checkOrderBin1Bin2(ZTBIN_REG &bin1, ZTBIN_REG &bin2)
         std::swap(bin1.b0, bin2.b0); 
 }
 
+
+
+long double ZTBIN_REG::getLogDensity(unsigned const &k, unsigned const &n, long double const &pred, AppOptions const& /*options*/)
+{
+    return logZtBinomialPmf(k, n, pred);
+}
+
+long double ZTBIN_REG::getLogDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
+{
+    const long double pred = 1.0L/(1.0L + std::exp(-this->b0));
+    return logZtBinomialPmf(k, n, pred);
+}
 
 #endif

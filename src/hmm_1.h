@@ -193,28 +193,28 @@ long double get_logSumExp(String<String<long double> > &fs, LogSumExp_lookupTabl
 template<typename TEProbs, typename TSetObs>
 bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2, ZTBIN &bin1, ZTBIN &bin2, unsigned t, AppOptions &options)
 {
-    long double gamma1_d = 1.0;
-    long double gamma2_d = 0.0;
+    long double gamma1_ld = 0.0;                 // log(1.0)
+    long double gamma2_ld = logZeroDensity();    // log(0.0)
     if (setObs.kdes[t] >= gamma1.tp)
     {
-        gamma1_d = gamma1.getDensity(setObs.kdes[t]);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t]);
+        gamma1_ld = gamma1.getLogDensity(setObs.kdes[t]);
+        gamma2_ld = gamma2.getLogDensity(setObs.kdes[t]);
     }
-    long double bin1_d = 1.0;
-    long double bin2_d = 0.0;
+    long double bin1_ld = 0.0;                   // log(1.0)
+    long double bin2_ld = logZeroDensity();      // log(0.0)
     if (setObs.truncCounts[t] > 0)
     {
-        bin1_d = bin1.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
-        bin2_d = bin2.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
+        bin1_ld = bin1.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
+        bin2_ld = bin2.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
     }
     // log-space
-    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d);
-    eProbs[1] = myLog(gamma1_d) + myLog(bin2_d);
-    eProbs[2] = myLog(gamma2_d) + myLog(bin1_d);
-    eProbs[3] = myLog(gamma2_d) + myLog(bin2_d);
+    eProbs[0] = gamma1_ld + bin1_ld;
+    eProbs[1] = gamma1_ld + bin2_ld;
+    eProbs[2] = gamma2_ld + bin1_ld;
+    eProbs[3] = gamma2_ld + bin2_ld;
 
     // check if valid
-    if ((gamma1_d + gamma2_d == 0.0) || (bin1_d + bin2_d == 0.0) ||
+    if ((std::isnan(gamma1_ld) && std::isnan(gamma2_ld)) || (std::isnan(bin1_ld) && std::isnan(bin2_ld)) ||
        (std::isnan(eProbs[0]) && std::isnan(eProbs[1]) && std::isnan(eProbs[2]) && std::isnan(eProbs[3])) )
     {
         if (options.verbosity >= 2)
@@ -228,13 +228,13 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
             SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       estimated n: " << setObs.nEstimates[t] << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
+                std::cout << "       log emission probability 'non-enriched' gamma: " << gamma1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
+                std::cout << "       log emission probability 'enriched' gamma: " << gamma2_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
+                std::cout << "       log emission probability 'non-crosslink' binomial: " << bin1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
+                std::cout << "       log emission probability 'crosslink' binomial: " << bin2_ld << std::endl;
         }
         eProbs[0] = 0.0;
         eProbs[1] = std::numeric_limits<double>::quiet_NaN();
@@ -252,29 +252,29 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
     long double gamma1_pred = exp(gamma1.b0 + gamma1.b1 * x);
     long double gamma2_pred = exp(gamma2.b0 + gamma2.b1 * x);
 
-    long double gamma1_d = 1.0;
-    long double gamma2_d = 0.0;
+    long double gamma1_ld = 0.0;                 // log(1.0)
+    long double gamma2_ld = logZeroDensity();    // log(0.0)
     if (setObs.kdes[t] >= gamma1.tp)
     {
-        gamma1_d = gamma1.getDensity(setObs.kdes[t], gamma1_pred, options);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t], gamma2_pred, options);
+        gamma1_ld = gamma1.getLogDensity(setObs.kdes[t], gamma1_pred, options);
+        gamma2_ld = gamma2.getLogDensity(setObs.kdes[t], gamma2_pred, options);
     }
 
-    long double bin1_d = 1.0;
-    long double bin2_d = 0.0;
+    long double bin1_ld = 0.0;                   // log(1.0)
+    long double bin2_ld = logZeroDensity();      // log(0.0)
     if (setObs.truncCounts[t] > 0)
     {
-        bin1_d = bin1.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
-        bin2_d = bin2.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
+        bin1_ld = bin1.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
+        bin2_ld = bin2.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], options);
     }
     // log-space
-    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d);
-    eProbs[1] = myLog(gamma1_d) + myLog(bin2_d);
-    eProbs[2] = myLog(gamma2_d) + myLog(bin1_d);
-    eProbs[3] = myLog(gamma2_d) + myLog(bin2_d);
+    eProbs[0] = gamma1_ld + bin1_ld;
+    eProbs[1] = gamma1_ld + bin2_ld;
+    eProbs[2] = gamma2_ld + bin1_ld;
+    eProbs[3] = gamma2_ld + bin2_ld;
 
     //
-    if ((gamma1_d + gamma2_d == 0.0) || (bin1_d + bin2_d == 0.0) ||
+    if ((std::isnan(gamma1_ld) && std::isnan(gamma2_ld)) || (std::isnan(bin1_ld) && std::isnan(bin2_ld)) ||
             (std::isnan(eProbs[0]) && std::isnan(eProbs[1]) && std::isnan(eProbs[2]) && std::isnan(eProbs[3])) )
     {
         if (options.verbosity >= 2)
@@ -290,13 +290,13 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
             SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       covariate b: " << x << " predicted mean 'non-enriched': " << gamma1_pred << " predicted mean 'enriched': " << gamma2_pred << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
+                std::cout << "       log emission probability 'non-enriched' gamma: " << gamma1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
+                std::cout << "       log emission probability 'enriched' gamma: " << gamma2_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
+                std::cout << "       log emission probability 'non-crosslink' binomial: " << bin1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
+                std::cout << "       log emission probability 'crosslink' binomial: " << bin2_ld << std::endl;
         }
         eProbs[0] = 0.0;
         eProbs[1] = std::numeric_limits<double>::quiet_NaN();
@@ -310,32 +310,32 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
 template<typename TEProbs, typename TSetObs>
 bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2, ZTBIN_REG &bin1, ZTBIN_REG &bin2, unsigned t, AppOptions &options)
 {
-    long double gamma1_d = 1.0;
-    long double gamma2_d = 0.0;
+    long double gamma1_ld = 0.0;                 // log(1.0)
+    long double gamma2_ld = logZeroDensity();    // log(0.0)
     if (setObs.kdes[t] >= gamma1.tp)
     {
-        gamma1_d = gamma1.getDensity(setObs.kdes[t]);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t]);
+        gamma1_ld = gamma1.getLogDensity(setObs.kdes[t]);
+        gamma2_ld = gamma2.getLogDensity(setObs.kdes[t]);
     }
     unsigned mId = setObs.motifIds[t];
     long double bin1_pred = 1.0/(1.0+exp(-bin1.b0 - bin1.regCoeffs[mId]*setObs.fimoScores[t]));
     long double bin2_pred = 1.0/(1.0+exp(-bin2.b0 - bin2.regCoeffs[mId]*setObs.fimoScores[t]));
 
-    long double bin1_d = 1.0;
-    long double bin2_d = 0.0;
+    long double bin1_ld = 0.0;                   // log(1.0)
+    long double bin2_ld = logZeroDensity();      // log(0.0)
     if (setObs.truncCounts[t] > 0)
     {
-        bin1_d = bin1.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin1_pred, options);
-        bin2_d = bin2.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin2_pred, options);
+        bin1_ld = bin1.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin1_pred, options);
+        bin2_ld = bin2.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin2_pred, options);
     }
 
-    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d);
-    eProbs[1] = myLog(gamma1_d) + myLog(bin2_d);
-    eProbs[2] = myLog(gamma2_d) + myLog(bin1_d);
-    eProbs[3] = myLog(gamma2_d) + myLog(bin2_d);
+    eProbs[0] = gamma1_ld + bin1_ld;
+    eProbs[1] = gamma1_ld + bin2_ld;
+    eProbs[2] = gamma2_ld + bin1_ld;
+    eProbs[3] = gamma2_ld + bin2_ld;
 
     //
-    if ((gamma1_d + gamma2_d == 0.0) || (bin1_d + bin2_d == 0.0) ||
+    if ((std::isnan(gamma1_ld) && std::isnan(gamma2_ld)) || (std::isnan(bin1_ld) && std::isnan(bin2_ld)) ||
             (std::isnan(eProbs[0]) && std::isnan(eProbs[1]) && std::isnan(eProbs[2]) && std::isnan(eProbs[3])) )
     {
         if (options.verbosity >= 2)
@@ -351,13 +351,13 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA &gamma1, GAMMA &gamma2
             SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       covariate x: " << setObs.fimoScores[t] << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
+                std::cout << "       log emission probability 'non-enriched' gamma: " << gamma1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
+                std::cout << "       log emission probability 'enriched' gamma: " << gamma2_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
+                std::cout << "       log emission probability 'non-crosslink' binomial: " << bin1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
+                std::cout << "       log emission probability 'crosslink' binomial: " << bin2_ld << std::endl;
         }
         eProbs[0] = 0.0;
         eProbs[1] = std::numeric_limits<double>::quiet_NaN();
@@ -375,32 +375,32 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
     long double gamma1_pred = exp(gamma1.b0 + gamma1.b1 * x);
     long double gamma2_pred = exp(gamma2.b0 + gamma2.b1 * x);
 
-    long double gamma1_d = 1.0;
-    long double gamma2_d = 0.0;
+    long double gamma1_ld = 0.0;                 // log(1.0)
+    long double gamma2_ld = logZeroDensity();    // log(0.0)
     if (setObs.kdes[t] >= gamma1.tp)
     {
-        gamma1_d = gamma1.getDensity(setObs.kdes[t], gamma1_pred, options);
-        gamma2_d = gamma2.getDensity(setObs.kdes[t], gamma2_pred, options);
+        gamma1_ld = gamma1.getLogDensity(setObs.kdes[t], gamma1_pred, options);
+        gamma2_ld = gamma2.getLogDensity(setObs.kdes[t], gamma2_pred, options);
     }
     unsigned mId = setObs.motifIds[t];
     long double bin1_pred = 1.0/(1.0+exp(-bin1.b0 - bin1.regCoeffs[mId]*setObs.fimoScores[t]));
     long double bin2_pred = 1.0/(1.0+exp(-bin2.b0 - bin2.regCoeffs[mId]*setObs.fimoScores[t]));
 
-    long double bin1_d = 1.0;
-    long double bin2_d = 0.0;
+    long double bin1_ld = 0.0;                   // log(1.0)
+    long double bin2_ld = logZeroDensity();      // log(0.0)
     if (setObs.truncCounts[t] > 0)
     {
-        bin1_d = bin1.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin1_pred, options);
-        bin2_d = bin2.getDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin2_pred, options);
+        bin1_ld = bin1.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin1_pred, options);
+        bin2_ld = bin2.getLogDensity(setObs.truncCounts[t], setObs.nEstimates[t], bin2_pred, options);
     }
 
-    eProbs[0] = myLog(gamma1_d) + myLog(bin1_d);
-    eProbs[1] = myLog(gamma1_d) + myLog(bin2_d);
-    eProbs[2] = myLog(gamma2_d) + myLog(bin1_d);
-    eProbs[3] = myLog(gamma2_d) + myLog(bin2_d);
+    eProbs[0] = gamma1_ld + bin1_ld;
+    eProbs[1] = gamma1_ld + bin2_ld;
+    eProbs[2] = gamma2_ld + bin1_ld;
+    eProbs[3] = gamma2_ld + bin2_ld;
 
     //
-    if ((gamma1_d + gamma2_d == 0.0) || (bin1_d + bin2_d == 0.0) ||
+    if ((std::isnan(gamma1_ld) && std::isnan(gamma2_ld)) || (std::isnan(bin1_ld) && std::isnan(bin2_ld)) ||
             (std::isnan(eProbs[0]) && std::isnan(eProbs[1]) && std::isnan(eProbs[2]) && std::isnan(eProbs[3])) )
     {
         if (options.verbosity >= 2)
@@ -418,13 +418,13 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
             SEQAN_OMP_PRAGMA(critical)
                 std::cout << "       covariate x: " << setObs.fimoScores[t] << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-enriched' gamma: " << gamma1_d << std::endl;
+                std::cout << "       log emission probability 'non-enriched' gamma: " << gamma1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'enriched' gamma: " << gamma2_d << std::endl;
+                std::cout << "       log emission probability 'enriched' gamma: " << gamma2_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'non-crosslink' binomial: " << bin1_d << std::endl;
+                std::cout << "       log emission probability 'non-crosslink' binomial: " << bin1_ld << std::endl;
             SEQAN_OMP_PRAGMA(critical)
-                std::cout << "       emission probability 'crosslink' binomial: " << bin2_d << std::endl;
+                std::cout << "       log emission probability 'crosslink' binomial: " << bin2_ld << std::endl;
         }
         eProbs[0] = 0.0;
         eProbs[1] = std::numeric_limits<double>::quiet_NaN();

@@ -56,6 +56,7 @@ public:
     GAMMA_REG() {}
 
     long double getDensity(double const &kde, double const &pred, AppOptions const& options);
+    long double getLogDensity(double const &kde, double const &pred, AppOptions const& options);
     bool updateRegCoeffsAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
     bool updateRegCoeffsAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
  
@@ -672,5 +673,12 @@ void checkOrderG1G2(GAMMA_REG &gamma1, GAMMA_REG &gamma2,
 
 }
 
+
+
+long double GAMMA_REG::getLogDensity(double const &kde, double const &pred, AppOptions const& /*options*/)
+{
+    const long double theta = (long double)pred/(long double)this->k;
+    return logTruncGammaDensity((long double)kde, (long double)this->k, theta, (long double)this->tp);
+}
 
 #endif

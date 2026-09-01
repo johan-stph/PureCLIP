@@ -58,6 +58,7 @@ public:
     GAMMA() {}
 
     long double getDensity(double const &x);
+    long double getLogDensity(double const &x);
     bool updateThetaAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
     bool updateThetaAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
 
@@ -604,5 +605,12 @@ void checkOrderG1G2(GAMMA &gamma1, GAMMA &gamma2, AppOptions & /*options*/)
     }
 }
 
+
+
+long double GAMMA::getLogDensity(double const &x)
+{
+    const long double theta = (long double)std::exp(this->b0)/(long double)this->k;
+    return logTruncGammaDensity((long double)x, (long double)this->k, theta, (long double)this->tp);
+}
 
 #endif

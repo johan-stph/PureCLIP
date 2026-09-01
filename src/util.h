@@ -30,6 +30,9 @@
 #include <seqan/bed_io.h>
 
 #include <math.h>    
+#include <cmath>
+#include <limits>
+#include <boost/math/special_functions/gamma.hpp>   // gamma_q(): upper incomplete gamma
 
 // SeqAn 2.5+ renamed namespace seqan -> seqan2; alias for source compatibility.
 namespace seqan = seqan2;
@@ -573,5 +576,60 @@ namespace seqan2 {
 
 
 
+
+
+// ===========================================================================
+// Log-space emission densities
+//
+// The emission probabilities feed a log-space forward-backward, but they used
+// to be built in linear space and converted afterwards. That loses intervals:
+// the zero-truncated binomial carries a (1-p)^(n-k) factor which underflows to
+// 0 once n is large, i.e. exactly on the high-coverage intervals that matter,
+// and PureCLIP then discards the interval outright. Whether it underflows
+// depends on the width of long double, which is 80-bit on x86-64 Linux,
+// 128-bit on aarch64 Linux and plain double on arm64 macOS — so the same input
+// gave different answers on different machines.
+//
+// Computing the logs directly removes both problems. NaN is log(0) here, which
+// is the convention myLog() already uses.
+// ===========================================================================
+
+inline long double logZeroDensity()
+{
+    return std::numeric_limits<long double>::quiet_NaN();
+}
+
+// log of the zero-truncated binomial pmf at k successes out of n, prob. p
+inline long double logZtBinomialPmf(unsigned const k, unsigned const n, long double const p)
+{
+    if (k == 0) return logZeroDensity();               // zero-truncated
+    const unsigned n2 = (n > k) ? n : k;               // make sure n >= k
+    const long double l1p = std::log1p(-p);
+
+    const long double logPmf = std::lgamma((long double)n2 + 1.0L)
+                             - std::lgamma((long double)k  + 1.0L)
+                             - std::lgamma((long double)(n2 - k) + 1.0L)
+                             + (long double)k * std::log(p)
+                             + (long double)(n2 - k) * l1p;
+
+    // zero-truncation normaliser: -log(1 - (1-p)^n), via expm1 to stay exact
+    return logPmf - std::log(-std::expm1((long double)n2 * l1p));
+}
+
+// log of the gamma density left-truncated at tp, shape k, scale theta.
+// Uses gamma_q (upper incomplete gamma) rather than 1 - gamma_p: once gamma_p
+// saturates at 1.0 the subtraction has no significant digits left, which is
+// what the old min_nligf clamp was papering over.
+inline long double logTruncGammaDensity(long double const x, long double const k,
+                                        long double const theta, long double const tp)
+{
+    if (x < tp) return logZeroDensity();
+
+    const long double logPdf = (k - 1.0L) * std::log(x) - x / theta
+                             - k * std::log(theta) - std::lgamma(k);
+    const long double q = boost::math::gamma_q(k, tp / theta);   // == 1 - gamma_p
+    if (q <= 0.0L) return logZeroDensity();
+    return logPdf - std::log(q);
+}
 
 #endif
