@@ -439,6 +439,9 @@ bool computeEProb(TEProbs &eProbs, TSetObs &setObs, GAMMA_REG &gamma1, GAMMA_REG
 template<typename TGAMMA, typename TBIN>
 bool HMM<TGAMMA, TBIN>::computeEmissionProbs(ModelParams<TGAMMA, TBIN> &modelParams, bool learning, AppOptions &options)
 {
+    // b0/k may have been updated by the optimiser since the last pass
+    modelParams.gamma1.invalidateCache();
+    modelParams.gamma2.invalidateCache();
     bool stop = false;
     for (unsigned s = 0; s < 2; ++s)
     {

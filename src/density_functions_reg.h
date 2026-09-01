@@ -57,6 +57,7 @@ public:
 
     long double getDensity(double const &kde, double const &pred, AppOptions const& options);
     long double getLogDensity(double const &kde, double const &pred, AppOptions const& options);
+    void invalidateCache() {}   // no-op: theta tracks pred, so nothing is constant
     bool updateRegCoeffsAndK(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
     bool updateRegCoeffsAndK(String<String<double> > &startSet, String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, double &kMin, double &kMax, AppOptions const& options); 
  
