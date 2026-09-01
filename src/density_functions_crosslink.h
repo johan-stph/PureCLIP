@@ -52,6 +52,7 @@ public:
     ZTBIN() {}
  
     long double getDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
+    long double getLogDensity(unsigned const &k, unsigned const &n, AppOptions const& options);
 
     void updateP(String<String<String<double> > > &statePosteriors, String<String<Observations> > &setObs, AppOptions const& options); 
 
@@ -147,5 +148,28 @@ void checkOrderBin1Bin2(ZTBIN &bin1, ZTBIN &bin2)
 }
 
 
+
+// Log of the zero-truncated binomial pmf, computed without ever forming the
+// linear value. The linear form underflows to 0 once n is large (the pmf
+// carries a (1-p)^(n-k) factor), which on a high-coverage interval makes the
+// emission probability 0 and costs the whole interval. Returns NaN for k == 0,
+// matching myLog()'s convention that NaN is log(0).
+long double ZTBIN::getLogDensity(unsigned const &k, unsigned const &n, AppOptions const& /*options*/)
+{
+    if (k == 0) return std::numeric_limits<long double>::quiet_NaN();   // zero-truncated
+
+    unsigned n2 = (n > k) ? n : k;                  // make sure n >= k
+    const long double pp  = this->p;
+    const long double l1p = std::log1p(-pp);
+
+    long double logPmf = std::lgamma((long double)n2 + 1.0L)
+                       - std::lgamma((long double)k  + 1.0L)
+                       - std::lgamma((long double)(n2 - k) + 1.0L)
+                       + (long double)k * std::log(pp)
+                       + (long double)(n2 - k) * l1p;
+
+    // zero-truncation normaliser: - log(1 - (1-p)^n), via expm1 to stay exact
+    return logPmf - std::log(-std::expm1((long double)n2 * l1p));
+}
 
 #endif
