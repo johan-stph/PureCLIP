@@ -76,16 +76,37 @@ the diff belongs in the pull request for a reviewer to look at.
 
 ## Known limitation: platform-dependent output
 
-Goldens are stored per platform (`tests/golden/<case>/Darwin`,
-`.../Linux`) because PureCLIP does not produce identical output on macOS and
-Linux. The divergence is large: on chrM the two platforms agree on the fitted
-parameters to five significant figures yet call 952 versus 2088 sites. That
-points at a threshold in site calling that sits close to a cliff, where a
-negligible parameter difference flips many positions across the cut-off.
+Goldens are stored per platform (`tests/golden/<case>/Darwin`, `.../Linux`)
+because PureCLIP does not produce identical output on macOS and Linux. On chrM
+the difference is large — 952 sites on macOS arm64 against 2088 on Linux — and
+it is not rounding. The cause is understood:
 
-This is a property of PureCLIP, not of the test suite, and it is worth
-investigating on its own. Until it is understood, compare like with like: a
-golden generated on macOS says nothing about a Linux build. A missing golden
-makes the comparison tests **skip** rather than fail, so a platform without
-recorded reference output still gets the `ground_truth` and `determinism`
-coverage, which are platform-independent.
+1. `long double` differs by architecture. On macOS arm64 it *is* `double`
+   (53-bit mantissa, smallest normal ~1e-308); on Linux x86-64 it is 80-bit x87
+   (64-bit mantissa, ~1e-4932); on Linux aarch64 it is 128-bit quad. PureCLIP
+   prints the limits at startup: on macOS arm64 you get
+   `DBL_MIN_10_EXP: -307 LDBL_MIN_10_EXP: -307` — the same number twice.
+2. Emission probabilities are computed in linear space and only then converted
+   to logs. On a high-coverage interval the zero-truncated binomial term
+   underflows to exactly 0 in `double`, while it stays representable in 80-bit.
+3. When emissions hit 0, PureCLIP discards the whole interval — run with `-vv`
+   to see `Warning: discarding interval ... due to emission probabilities of
+   0.0`. On chrM, interval `[0, 4550)` is dropped on macOS. That window holds
+   about 74% of the reads, which is why the macOS site list starts at 4893.
+
+So macOS output is a strict *subset* of Linux output: PureCLIP under-calls
+there, it never over-calls. `tests/golden/chrM/Darwin/sites.bed` is contained
+exactly in the Linux list, and the same holds for regions.
+
+PureCLIP's own advice when this happens is to rerun with `-ld` (long double).
+**That flag does nothing on Apple Silicon**, because `long double` is already
+`double` — the output is byte-identical and the same intervals are discarded.
+The real fix is to compute the emission log-densities directly rather than
+computing a linear density and taking its log; the forward-backward algorithm
+is already in log space, so the emissions are the remaining gap.
+
+Until that is fixed, compare like with like: a golden generated on macOS says
+nothing about a Linux build. A missing golden makes the comparison tests
+**skip** rather than fail, so a platform without recorded reference output
+still gets the `ground_truth` and `determinism` coverage, which are
+platform-independent.
