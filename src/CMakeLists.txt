@@ -1,5 +1,5 @@
 # Minimum cmake version
-cmake_minimum_required (VERSION 3.0.0)
+cmake_minimum_required (VERSION 3.5...3.31)
 
 # Generate Release builds by default
 if ( NOT CMAKE_BUILD_TYPE )
@@ -17,6 +17,53 @@ project (PureCLIP CXX)
 # ----------------------------------------------------------------------------
 
 LIST ( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ )
+
+# ----------------------------------------------------------------------------
+# Apple Clang / arm64 (Apple Silicon) OpenMP support
+# Apple's clang does not bundle OpenMP; use libomp installed via Homebrew.
+# Install with:  brew install libomp
+# ----------------------------------------------------------------------------
+if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Try to locate libomp via Homebrew (works for both arm64 and Intel).
+    # brew is typically not on cmake's default PATH, so probe known prefixes.
+    find_program (BREW_EXEC brew
+        PATHS /opt/homebrew/bin /usr/local/bin
+        NO_DEFAULT_PATH
+    )
+    if (BREW_EXEC)
+        execute_process (
+            COMMAND ${BREW_EXEC} --prefix libomp
+            OUTPUT_VARIABLE LIBOMP_PREFIX
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE LIBOMP_BREW_RESULT
+        )
+    endif()
+    # Fall back to well-known Homebrew keg paths if brew lookup failed
+    if (NOT LIBOMP_PREFIX OR NOT EXISTS "${LIBOMP_PREFIX}/lib/libomp.dylib")
+        foreach (_candidate
+                "/opt/homebrew/opt/libomp"
+                "/usr/local/opt/libomp")
+            if (EXISTS "${_candidate}/lib/libomp.dylib")
+                set (LIBOMP_PREFIX "${_candidate}")
+                break()
+            endif()
+        endforeach()
+    endif()
+    if (EXISTS "${LIBOMP_PREFIX}/lib/libomp.dylib")
+        message (STATUS "Apple Clang detected -- using libomp at ${LIBOMP_PREFIX}")
+        set (OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include")
+        set (OpenMP_CXX_LIB_NAMES "omp")
+        set (OpenMP_omp_LIBRARY "${LIBOMP_PREFIX}/lib/libomp.dylib")
+        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${LIBOMP_PREFIX}/lib -lomp")
+    else()
+        message (FATAL_ERROR
+            "Apple Clang requires libomp for OpenMP support.\n"
+            "Install it with:  brew install libomp\n"
+            "Then re-run cmake."
+        )
+    endif()
+endif()
+
 find_package ( OpenMP REQUIRED )
 include ( SeqAn )
 include ( Boost )

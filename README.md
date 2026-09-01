@@ -11,7 +11,10 @@ You can install PureCLIP from Bioconda, from the release tarballs and from sourc
 Using Conda with an activated [Bioconda](http://bioconda.github.io) channel is the easiest way to install PureCLIP:
 
     $ conda install pureclip
-    
+
+> **Apple Silicon (arm64):** Bioconda bottles are built for x86\_64. For a native
+> arm64 binary build from source — see [INSTALLATION.md](INSTALLATION.md).
+
 ## Release Tarballs
 
 Alternatively, you can get the source code and binaries for macOS and Linux [here](https://github.com/skrakau/PureCLIP/releases/latest).
@@ -22,25 +25,29 @@ PureCLIP has also been integrated into the European Galaxy server https://usegal
 
 Thanks to the Freiburg Galaxy Team!
 
-# Build from source
+# Installation
 
-Clone the repository
+For full installation instructions — including **Apple Silicon (arm64)** native
+builds, Linux, and Bioconda — see **[INSTALLATION.md](INSTALLATION.md)**.
+
+### Quick start (Linux / macOS)
 
     $ git clone https://github.com/skrakau/PureCLIP.git
     $ cd PureCLIP
+    $ mkdir build && cd build
+    $ cmake ../src -DCMAKE_BUILD_TYPE=Release
+    $ make -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
-Create a build directory, configure the build and compile
-
-    $ mkdir build
-    $ cd build
-    $ cmake ../src
-    $ make
+> **macOS (Apple Silicon):** install `libomp` first (`brew install cmake gsl libomp`).
+> The build system detects Apple Clang automatically — no extra flags needed.
+> See [INSTALLATION.md](INSTALLATION.md) for details.
 
 Requirements
 
- - C++14 compliant compiler
+ - C++14 compliant compiler (GCC ≥ 5 or Clang ≥ 3.4)
  - GSL
  - cmake 3.0 or newer
+ - OpenMP (`libomp` via Homebrew on macOS)
 
 
 # Documentation
