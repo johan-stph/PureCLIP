@@ -160,7 +160,6 @@ namespace seqan2 {
 
         unsigned distMerge;
         bool use_pseudoEProb;
-        bool useHighPrecision;      // long double to compute emission probabilities, state posteriors, Forward-Backward (alpha, beta) values
         LogSumExp_lookupTable lookUp;   // table containing log-sum-exp precomputed values to avoid expensive log and exp operations
         unsigned lookupTable_size;
         double lookupTable_minValue;
@@ -227,7 +226,6 @@ namespace seqan2 {
             nInputMotifs(1),
             distMerge(8),
             use_pseudoEProb(false),          // when including replicates, add pseudo eProb to avoid crosslink eprobs of 0.0 !
-            useHighPrecision(false),
             lookupTable_size(600000),
             lookupTable_minValue(-2000.0),
             selectRead(0),

@@ -111,7 +111,6 @@ parseCommandLine(AppOptions & options, int argc, char const ** argv)
 
     addOption(parser, ArgParseOption("dm", "dm", "Distance used to merge individual crosslink sites to binding regions. Default: 8", ArgParseArgument::INTEGER));
 
-    addOption(parser, ArgParseOption("ld", "ld", "Use higher precision to store emission probabilities, state poster posterior probabilities etc. (i.e. long double). Should not be necessary anymore, due to computations in log-space. Note: increases memory consumption. Default: double."));
     addOption(parser, ArgParseOption("ts", "ts", "Size of look-up table for log-sum-exp values. Default: 600000", ArgParseArgument::INTEGER));
     addOption(parser, ArgParseOption("tmv", "tmv", "Minimum value in look-up table for log-sum-exp values. Default: -2000", ArgParseArgument::DOUBLE));
 
@@ -304,8 +303,6 @@ parseCommandLine(AppOptions & options, int argc, char const ** argv)
     getOptionValue(options.p2, parser, "b2p");
 
     getOptionValue(options.distMerge, parser, "dm");
-    if (isSet(parser, "ld"))
-        options.useHighPrecision = true;
     getOptionValue(options.lookupTable_size, parser, "ts");
     getOptionValue(options.lookupTable_minValue, parser, "tmv");
     getOptionValue(options.selectRead, parser, "ur");
