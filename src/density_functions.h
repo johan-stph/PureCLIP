@@ -595,7 +595,7 @@ void printParams(TOut &out, GAMMA &gamma, int i)
 }
 
 
-void checkOrderG1G2(GAMMA &gamma1, GAMMA &gamma2, AppOptions &options)
+void checkOrderG1G2(GAMMA &gamma1, GAMMA &gamma2, AppOptions & /*options*/)
 {
     if (exp(gamma1.b0) > exp(gamma2.b0))
     {
