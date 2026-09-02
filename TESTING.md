@@ -45,6 +45,20 @@ requires all 12 to be recovered (within ±2 bp — PureCLIP reports the crosslin
 one base upstream of the truncation site). It stays meaningful even if the
 reference files themselves turn out to be wrong.
 
+## The covariate model is compared loosely
+
+The `-ibam` case (`tier2_cov_*`) is checked by position agreement rather than
+byte equality. That model fits a GLM, and the fit amplifies small differences
+in the platform's maths library: the same input on two different arm64 Macs
+produces identical site positions but scores differing by 1e-4 to 1e-3
+relative, and fitted parameters by up to 4e-4. The default model does not do
+this — it reproduces byte-for-byte across the same two machines.
+
+So the covariate tests assert that the same sites are called (Jaccard >= 0.98)
+and that the fit is in the same place (params within 1e-2), which is what
+actually has to hold. The case exists because that path was completely
+untested until a crash in it shipped in v3.0.0.
+
 ## Test data
 
 - **synthetic** — 10 kb contig, 860 reads, 12 implanted crosslinks. Generated
