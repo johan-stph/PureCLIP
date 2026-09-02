@@ -40,6 +40,7 @@
 
 
 #include "util.h"
+#include "config.h"
 #include "call_sites.h"
 #include "call_sites_replicates.h"
 
@@ -61,21 +62,20 @@ parseCommandLine(AppOptions & options, int argc, char const ** argv)
     addDescription(parser, "Protein-RNA interaction site detection using a non-homogeneous HMM.");
 
     // rep1 [rep2]
+    addOption(parser, ArgParseOption("c", "config", "TOML configuration file. Any flag given on the command line overrides the value in it. See pureclip_defaults.toml.", ArgParseArgument::INPUT_FILE, "TOML"));
+    setValidValues(parser, "config", ".toml");
+
     addOption(parser, ArgParseOption("i", "in", "Target bam files.", ArgParseArgument::INPUT_FILE, "BAM", true));
     setValidValues(parser, "in", ".bam");
-    setRequired(parser, "in", true);
 
     addOption(parser, ArgParseOption("bai", "bai", "Target bam index files.", ArgParseArgument::INPUT_FILE, "BAI", true));
     setValidValues(parser, "bai", ".bai");
-    setRequired(parser, "bai", true);
 
     addOption(parser, ArgParseOption("g", "genome", "Genome reference file.", ArgParseArgument::INPUT_FILE));
     setValidValues(parser, "genome", ".fa .fasta .fa.gz .fasta.gz");
-    setRequired(parser, "genome", true);  
 
     addOption(parser, ArgParseOption("o", "out", "Output file to write crosslink sites.", ArgParseArgument::OUTPUT_FILE));
     setValidValues(parser, "out", ".bed");
-    setRequired(parser, "out", true);
     addOption(parser, ArgParseOption("or", "or", "Output file to write binding regions.", ArgParseArgument::OUTPUT_FILE));
     setValidValues(parser, "or", ".bed");
     addOption(parser, ArgParseOption("p", "par", "Output file to write learned parameters.", ArgParseArgument::OUTPUT_FILE));
@@ -219,29 +219,55 @@ parseCommandLine(AppOptions & options, int argc, char const ** argv)
     if (res != ArgumentParser::PARSE_OK)
         return res;
 
+    // Read the config file before any option is extracted. Defaults live in
+    // the AppOptions constructor, and getOptionValue() leaves its destination
+    // untouched for a flag the user did not pass, so loading here yields
+    // command line > config file > built-in defaults.
+    if (isSet(parser, "config"))
+    {
+        CharString configFileName;
+        getOptionValue(configFileName, parser, "config");
+        if (!load_toml_config(toCString(configFileName), options))
+            return ArgumentParser::PARSE_ERROR;
+    }
+
     unsigned repNo = getOptionValueCount(parser, "in");
-    if (repNo != getOptionValueCount(parser, "bai"))
+    if (repNo > 0)      // no -i given: keep whatever the config file supplied
     {
-        std::cout << "ERROR: currently only support for <= 2 replicates!" << std::endl;
-        return ArgumentParser::PARSE_ERROR;
-    }
-    if (repNo != getOptionValueCount(parser, "bai"))
-    {
-        std::cout << "ERROR: number of BAI files must be the same as of BAM files!" << std::endl;
-        return ArgumentParser::PARSE_ERROR;
-    }
-    resize(options.bamFileNames, repNo);
-    resize(options.baiFileNames, repNo);
-    for (unsigned i = 0; i < repNo; ++i)
-    {
-        getOptionValue(options.bamFileNames[i], parser, "in", i);
-        getOptionValue(options.baiFileNames[i], parser, "bai", i);
+        if (repNo != getOptionValueCount(parser, "bai"))
+        {
+            std::cout << "ERROR: number of BAI files must be the same as of BAM files!" << std::endl;
+            return ArgumentParser::PARSE_ERROR;
+        }
+        resize(options.bamFileNames, repNo);
+        resize(options.baiFileNames, repNo);
+        for (unsigned i = 0; i < repNo; ++i)
+        {
+            getOptionValue(options.bamFileNames[i], parser, "in", i);
+            getOptionValue(options.baiFileNames[i], parser, "bai", i);
+        }
     }
 
     getOptionValue(options.refFileName, parser, "genome");
     getOptionValue(options.outFileName, parser, "out");
     getOptionValue(options.outRegionsFileName, parser, "or");
     getOptionValue(options.parFileName, parser, "par");
+
+    // -i/-bai/-g/-o are no longer required by the parser, since a config file
+    // may supply them; check here that they arrived from one source or other.
+    if (length(options.bamFileNames) == 0 || length(options.baiFileNames) == 0 ||
+        options.refFileName == "" || options.outFileName == "")
+    {
+        std::cout << "ERROR: input BAM (-i), BAM index (-bai), reference genome (-g) and "
+                  << "output file (-o) are required, either on the command line or in a "
+                  << "config file (-c; -o may come from output_prefix)." << std::endl;
+        return ArgumentParser::PARSE_ERROR;
+    }
+    if (length(options.bamFileNames) != length(options.baiFileNames))
+    {
+        std::cout << "ERROR: number of BAI files must be the same as of BAM files!" << std::endl;
+        return ArgumentParser::PARSE_ERROR;
+    }
     getOptionValue(options.rpkmFileName, parser, "is");
     getOptionValue(options.inputBamFileName, parser, "ibam");
     getOptionValue(options.inputBaiFileName, parser, "ibai");

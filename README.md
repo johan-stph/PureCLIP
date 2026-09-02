@@ -16,6 +16,28 @@ building from source (macOS & Linux), and upcoming package manager support.
 
 ---
 
+## Configuration file
+
+Parameters can be given in a TOML file instead of on the command line:
+
+```bash
+pureclip -c my_config.toml
+```
+
+`pureclip_defaults.toml` documents every supported key and can be copied as a
+starting point. Precedence is **command line > config file > built-in
+defaults**, so a config can hold your standing setup while flags override it
+per run:
+
+```bash
+pureclip -c base.toml -bw 100 -nt 8
+```
+
+`output_prefix` derives the three output paths (`<prefix>_sites.bed`,
+`<prefix>_regions.bed`, `<prefix>_params.txt`), so `-o`/`-or`/`-p` can be
+omitted. Inputs (`bam`, `bai`, `genome`) may come from either source; unknown
+keys are ignored so a config written for a newer version still loads.
+
 ## Testing
 
 See **[TESTING.md](TESTING.md)** — `make test` runs a fast correctness check;
