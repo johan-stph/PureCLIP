@@ -27,6 +27,7 @@ jobs:
           mkdir build && cd build
           cmake ../src \
             -DCMAKE_BUILD_TYPE=Release \
+            -DPURE_CLIP_VERSION="${GITHUB_REF_NAME#v}" \
             -DCMAKE_PREFIX_PATH="$(brew --prefix boost)" \
             -DGSL_ROOT_DIR="$(brew --prefix gsl)"
 
@@ -36,6 +37,9 @@ jobs:
       - name: Verify
         run: |
           ./build/pureclip --version
+          # the version must come from the tag, not fall back to "unknown"
+          ./build/pureclip --version | grep -q "${GITHUB_REF_NAME#v}" \
+            || { echo "ERROR: binary does not report ${GITHUB_REF_NAME#v}"; exit 1; }
           file build/pureclip | grep -q arm64 && echo "✓ native arm64 binary"
 
       - name: Package
@@ -70,7 +74,7 @@ jobs:
       - name: Configure
         run: |
           mkdir build && cd build
-          cmake ../src -DCMAKE_BUILD_TYPE=Release
+          cmake ../src -DCMAKE_BUILD_TYPE=Release -DPURE_CLIP_VERSION="${GITHUB_REF_NAME#v}"
 
       - name: Build
         run: make -C build -j$(nproc)
@@ -78,6 +82,9 @@ jobs:
       - name: Verify
         run: |
           ./build/pureclip --version
+          # the version must come from the tag, not fall back to "unknown"
+          ./build/pureclip --version | grep -q "${GITHUB_REF_NAME#v}" \
+            || { echo "ERROR: binary does not report ${GITHUB_REF_NAME#v}"; exit 1; }
           file build/pureclip | grep -q x86-64 && echo "✓ native x86_64 binary"
 
       - name: Package
@@ -112,7 +119,7 @@ jobs:
       - name: Configure
         run: |
           mkdir build && cd build
-          cmake ../src -DCMAKE_BUILD_TYPE=Release
+          cmake ../src -DCMAKE_BUILD_TYPE=Release -DPURE_CLIP_VERSION="${GITHUB_REF_NAME#v}"
 
       - name: Build
         run: make -C build -j$(nproc)
@@ -120,6 +127,9 @@ jobs:
       - name: Verify
         run: |
           ./build/pureclip --version
+          # the version must come from the tag, not fall back to "unknown"
+          ./build/pureclip --version | grep -q "${GITHUB_REF_NAME#v}" \
+            || { echo "ERROR: binary does not report ${GITHUB_REF_NAME#v}"; exit 1; }
           file build/pureclip | grep -q aarch64 && echo "✓ native aarch64 binary"
 
       - name: Package
