@@ -140,5 +140,5 @@ from source.
 
 | Method | Status |
 |--------|--------|
-| Homebrew | TODO — the `johan-stph/tap` tap is no longer maintained; the formula in `packaging/homebrew/` is kept only as a starting point |
+| Homebrew | TODO — no tap is maintained; the previous `johan-stph/tap` and its formula have been removed |
 | Bioconda | TODO — recipe scaffolded in `packaging/bioconda/`, never submitted |
