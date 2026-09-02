@@ -104,9 +104,27 @@ bool parse_bamRegion(TTruncCounts &truncCounts, TBamIn &inFile, TBai &baiIndex, 
     else
         jump_beginPos = (beginPos > 100u) ? (beginPos - 100u + 1u) : 1u;
 
-    if (!jumpToRegion(inFile, hasAlignments, rID, jump_beginPos, (endPos + 1001u), baiIndex))
+    // The +1000 lookahead can run past the end of the contig. SeqAn 2.2 ignored
+    // that; 2.5.3 throws std::logic_error ("'regionEnd' ... greater than the
+    // length of the reference"), which aborted the run. Clamp to the contig
+    // length from the BAM header.
+    uint32_t jump_endPos = endPos + 1001u;
+    if (!empty(contigLengths(context(inFile))) && rID >= 0 &&
+        static_cast<unsigned>(rID) < length(contigLengths(context(inFile))))
     {
-        std::cerr << "ERROR: Could not jump to " << beginPos << ":" << endPos << "\n";
+        const uint32_t contigLen =
+            static_cast<uint32_t>(contigLengths(context(inFile))[rID]);
+        if (contigLen > 0u)
+        {
+            if (jump_endPos > contigLen)   jump_endPos   = contigLen;
+            if (jump_beginPos > contigLen) jump_beginPos = contigLen;
+        }
+    }
+    if (jump_beginPos > jump_endPos) jump_beginPos = jump_endPos;
+
+    if (!jumpToRegion(inFile, hasAlignments, rID, jump_beginPos, jump_endPos, baiIndex))
+    {
+        std::cerr << "ERROR: Could not jump to " << jump_beginPos << ":" << jump_endPos << "\n";
         return false;
     }
     /*if (!hasAlignments)
