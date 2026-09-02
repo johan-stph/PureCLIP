@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install dependencies
-        run: brew install ccache gsl libomp boost
+        run: brew install ccache gsl libomp boost samtools
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -49,6 +49,18 @@ jobs:
           ./build/winextract --version
           file build/pureclip | grep -q arm64 && echo "✓ native arm64 binary"
 
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure
+          # Golden comparisons SKIP on a platform with no recorded reference,
+          # and a skip is not a failure — so on Linux the run above can pass
+          # while checking almost nothing. Ground truth and determinism are
+          # platform-independent and must actually execute; --no-tests=error
+          # turns "nothing matched" into a failure.
+          ctest --test-dir build -L "truth|determinism" \
+                --output-on-failure --no-tests=error
+
       - name: ccache stats
         run: ccache --show-stats
 
@@ -68,7 +80,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install dependencies
-        run: brew install ccache gsl libomp boost
+        run: brew install ccache gsl libomp boost samtools
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -108,7 +120,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y ccache cmake g++ libgsl-dev libboost-dev zlib1g-dev libbz2-dev
+          sudo apt-get install -y ccache cmake g++ libgsl-dev libboost-dev zlib1g-dev libbz2-dev samtools
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -133,6 +145,18 @@ jobs:
           ./build/winextract --version
           file build/pureclip | grep -q x86-64 && echo "✓ native x86_64 binary"
 
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure
+          # Golden comparisons SKIP on a platform with no recorded reference,
+          # and a skip is not a failure — so on Linux the run above can pass
+          # while checking almost nothing. Ground truth and determinism are
+          # platform-independent and must actually execute; --no-tests=error
+          # turns "nothing matched" into a failure.
+          ctest --test-dir build -L "truth|determinism" \
+                --output-on-failure --no-tests=error
+
       - name: ccache stats
         run: ccache --show-stats
 
@@ -154,7 +178,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y ccache cmake g++ libgsl-dev libboost-dev zlib1g-dev libbz2-dev
+          sudo apt-get install -y ccache cmake g++ libgsl-dev libboost-dev zlib1g-dev libbz2-dev samtools
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -178,6 +202,18 @@ jobs:
           ./build/pureclip --version
           ./build/winextract --version
           file build/pureclip | grep -q aarch64 && echo "✓ native aarch64 binary"
+
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure
+          # Golden comparisons SKIP on a platform with no recorded reference,
+          # and a skip is not a failure — so on Linux the run above can pass
+          # while checking almost nothing. Ground truth and determinism are
+          # platform-independent and must actually execute; --no-tests=error
+          # turns "nothing matched" into a failure.
+          ctest --test-dir build -L "truth|determinism" \
+                --output-on-failure --no-tests=error
 
       - name: ccache stats
         run: ccache --show-stats
