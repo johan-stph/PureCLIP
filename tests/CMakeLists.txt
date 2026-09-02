@@ -117,3 +117,13 @@ if(EXISTS "${CHRM}/chrM.bam")
     add_check(tier2_cov_params  tier2 cov params "${OUT}/cov.params.txt"
               "${GOLD_COV}/params.txt" --tol 1e-2)
 endif()
+
+# --- tier 1: TOML config file -----------------------------------------------
+add_test(NAME tier1_config
+         COMMAND ${CMAKE_COMMAND}
+                 -DPURECLIP=${PURECLIP} -DSYN=${SYN} -DOUT=${OUT}
+                 -DCMP=${CMP} -DGOLD=${GOLD_SYN}
+                 -P "${T}/config.cmake")
+set_tests_properties(tier1_config PROPERTIES
+    LABELS "tier1;config" FIXTURES_REQUIRED synthetic_data
+    SKIP_RETURN_CODE 77 TIMEOUT 600)
