@@ -19,6 +19,7 @@ set(SYN        "${T}/data/synthetic")
 set(CHRM       "${T}/data/chrM")
 set(GOLD_SYN   "${T}/golden/synthetic/${CMAKE_SYSTEM_NAME}")
 set(GOLD_CHRM  "${T}/golden/chrM/${CMAKE_SYSTEM_NAME}")
+set(GOLD_COV   "${T}/golden/chrM_cov/${CMAKE_SYSTEM_NAME}")
 set(OUT        "${CMAKE_BINARY_DIR}/test_output")
 set(CMP        "${T}/compare.py")
 set(PURECLIP   "$<TARGET_FILE:pureclip>")
@@ -85,4 +86,26 @@ if(EXISTS "${CHRM}/chrM.bam")
     add_check(tier2_regions   tier2 chrm bed    "${OUT}/chrm.regions.bed" "${GOLD_CHRM}/regions.bed")
     add_check(tier2_params    tier2 chrm params "${OUT}/chrm.params.txt"  "${GOLD_CHRM}/params.txt" --tol 1e-4)
     add_check(tier2_agreement tier2 chrm agree  "${OUT}/chrm.sites.bed"   "${GOLD_CHRM}/sites.bed" --min-jaccard 0.95)
+endif()
+
+# --- tier 2: covariate model (-ibam) ----------------------------------------
+# Exercises GAMMA_REG and the seven-argument parse_bamRegion, neither of which
+# the default invocation touches. That gap let a crash ship: the +1000 jump
+# lookahead ran past the contig end and SeqAn 2.5.3 aborted the run.
+if(EXISTS "${CHRM}/chrM.bam")
+    add_test(NAME tier2_run_cov
+             COMMAND ${PURECLIP}
+                     -i    "${CHRM}/chrM.bam"  -bai  "${CHRM}/chrM.bam.bai"
+                     -ibam "${CHRM}/chrM.bam"  -ibai "${CHRM}/chrM.bam.bai"
+                     -g    "${CHRM}/chrM.fa"
+                     -o    "${OUT}/cov.sites.bed"
+                     -or   "${OUT}/cov.regions.bed"
+                     -p    "${OUT}/cov.params.txt"
+                     -nt   4)
+    set_tests_properties(tier2_run_cov PROPERTIES
+        LABELS "tier2;run;covariates" FIXTURES_SETUP cov_output TIMEOUT 900)
+
+    add_check(tier2_cov_smoke   tier2 cov count  "${OUT}/cov.sites.bed" 10)
+    add_check(tier2_cov_sites   tier2 cov bed    "${OUT}/cov.sites.bed"   "${GOLD_COV}/sites.bed")
+    add_check(tier2_cov_params  tier2 cov params "${OUT}/cov.params.txt"  "${GOLD_COV}/params.txt" --tol 1e-4)
 endif()

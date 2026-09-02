@@ -51,5 +51,23 @@ echo
 run_case synthetic "${TESTS_DIR}/data/synthetic" sample.bam ref.fa
 run_case chrM      "${TESTS_DIR}/data/chrM"      chrM.bam   chrM.fa
 
+# Covariate model (-ibam): a different model path (GAMMA_REG) and a different
+# BAM-parsing routine. chrM stands in as its own control; the point is that the
+# path runs and stays stable, not that the biology is meaningful.
+CHRM_DIR="${TESTS_DIR}/data/chrM"
+if [[ -f "${CHRM_DIR}/chrM.bam" ]]; then
+    out="${TESTS_DIR}/golden/chrM_cov/${PLATFORM}"
+    mkdir -p "$out"
+    echo "=== chrM_cov (-ibam) ==="
+    "$PURECLIP" \
+        -i    "${CHRM_DIR}/chrM.bam"     -bai  "${CHRM_DIR}/chrM.bam.bai" \
+        -ibam "${CHRM_DIR}/chrM.bam"     -ibai "${CHRM_DIR}/chrM.bam.bai" \
+        -g    "${CHRM_DIR}/chrM.fa" \
+        -o    "${out}/sites.bed" -or "${out}/regions.bed" -p "${out}/params.txt" \
+        -nt   4 > /dev/null
+    echo "  sites:   $(wc -l < "${out}/sites.bed" | tr -d ' ') lines"
+    echo "  regions: $(wc -l < "${out}/regions.bed" | tr -d ' ') lines"
+fi
+
 echo
 echo "Done. Review the diff before committing:  git diff tests/golden/"
