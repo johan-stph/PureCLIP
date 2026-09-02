@@ -122,7 +122,6 @@ endif()
 add_test(NAME tier1_config
          COMMAND ${CMAKE_COMMAND}
                  -DPURECLIP=${PURECLIP} -DSYN=${SYN} -DOUT=${OUT}
-                 -DCMP=${CMP} -DGOLD=${GOLD_SYN}
                  -P "${T}/config.cmake")
 set_tests_properties(tier1_config PROPERTIES
     LABELS "tier1;config" FIXTURES_REQUIRED synthetic_data
