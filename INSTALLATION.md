@@ -1,20 +1,20 @@
 # Installing PureCLIP
 
-This guide covers all installation methods: pre-built binaries, Homebrew,
-and building from source.
+This guide covers the two supported installation methods: pre-built release
+binaries, and building from source. Package-manager installs are not currently
+available — see [Package managers](#package-managers).
 
 ---
 
 ## Table of Contents
 
 - [Pre-built release binaries](#pre-built-release-binaries)
-- [Homebrew (macOS)](#homebrew-macos)
 - [Build from source](#build-from-source)
   - [macOS (Apple Silicon)](#macos-apple-silicon)
   - [Linux](#linux)
 - [Verify the build](#verify-the-build)
 - [Quick sample run](#quick-sample-run)
-- [Coming soon](#coming-soon)
+- [Package managers](#package-managers)
 
 ---
 
@@ -28,17 +28,6 @@ available on the [Releases](https://github.com/johan-stph/PureCLIP/releases/late
 tar -xzf pureclip-<version>-<platform>.tar.gz
 ./pureclip --version
 ```
-
----
-
-## Homebrew (macOS)
-
-```bash
-brew tap johan-stph/tap
-brew install pureclip2
-```
-
-Installs `pureclip2` and `winextract` with all dependencies resolved automatically.
 
 ---
 
@@ -69,8 +58,8 @@ make -j$(sysctl -n hw.logicalcpu)
 > correct include/library paths. No extra flags needed.
 >
 > **Intel macOS** is not actively tested or packaged. The source may still
-> compile (follow the same steps above), but pre-built binaries and
-> Homebrew bottles are not provided for x86\_64 macOS.
+> compile (follow the same steps above), but no pre-built binaries are
+> published for x86\_64 macOS.
 
 ### Linux
 
@@ -144,10 +133,12 @@ For more options see the [full documentation](http://pureclip.readthedocs.io/en/
 
 ---
 
-## Coming soon
+## Package managers
 
-| Method | Install command | Status |
-|--------|----------------|--------|
-| **Bioconda** | `conda install -c bioconda pureclip2` | 🚧 recipe scaffolded, submission pending |
+**TODO — none are currently available.** Install from a release binary or build
+from source.
 
-Auto-resolved dependencies and updates with each release.
+| Method | Status |
+|--------|--------|
+| Homebrew | TODO — the `johan-stph/tap` tap is no longer maintained; the formula in `packaging/homebrew/` is kept only as a starting point |
+| Bioconda | TODO — recipe scaffolded in `packaging/bioconda/`, never submitted |
